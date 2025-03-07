@@ -9,25 +9,30 @@ import LevelSelect from "./pages/LevelSelect";
 import Game from "./pages/Game";
 import Results from "./pages/Results";
 import NotFound from "./pages/NotFound";
+import Admin from "./pages/Admin";
+import { GameProvider } from "./context/GameContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/levels" element={<LevelSelect />} />
-          <Route path="/game" element={<Game />} />
-          <Route path="/results" element={<Results />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <GameProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/levels" element={<LevelSelect />} />
+            <Route path="/game" element={<Game />} />
+            <Route path="/results" element={<Results />} />
+            <Route path="/admin" element={<Admin />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </GameProvider>
   </QueryClientProvider>
 );
 

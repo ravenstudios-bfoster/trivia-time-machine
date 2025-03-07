@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import GameButton from "@/components/ui/GameButton";
 import { useGame } from "@/context/GameContext";
+import { toast } from "sonner";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -29,6 +30,16 @@ const Index = () => {
     
     // Navigate to level selection
     navigate("/levels");
+    toast.success(`Welcome, ${playerName}! Let's play!`);
+  };
+
+  // Secret admin access - double click on title
+  const handleTitleDoubleClick = () => {
+    // Secret admin path - only obvious to someone who knows to double-click the title
+    navigate("/admin");
+    toast.info("Accessing admin area...", {
+      description: "This area is for game administrators only."
+    });
   };
   
   return (
@@ -44,7 +55,10 @@ const Index = () => {
       {/* Main Content */}
       <div className="w-full max-w-3xl mx-auto text-center">
         <div className="mb-12 animate-fade-in">
-          <h1 className="text-4xl md:text-6xl mb-2 font-bold bg-gradient-to-br from-amber-400 to-orange-600 text-transparent bg-clip-text drop-shadow-[0_2px_10px_rgba(255,122,0,0.3)]">
+          <h1 
+            className="text-4xl md:text-6xl mb-2 font-bold bg-gradient-to-br from-amber-400 to-orange-600 text-transparent bg-clip-text drop-shadow-[0_2px_10px_rgba(255,122,0,0.3)]"
+            onDoubleClick={handleTitleDoubleClick}
+          >
             TRIVIA TIME MACHINE
           </h1>
           <h2 className="text-xl md:text-2xl text-blue-300">Tom's 50th Birthday Challenge</h2>
@@ -64,6 +78,9 @@ const Index = () => {
               }}
               className="text-lg p-4 bg-black/30 border-blue-500/50 focus:border-blue-400"
               autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleStartGame();
+              }}
             />
             
             {nameError && <p className="text-red-500 mt-2">{nameError}</p>}
