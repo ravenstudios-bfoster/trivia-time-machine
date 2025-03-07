@@ -9,7 +9,7 @@ import { getLevelDescription } from "@/lib/gameLogic";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Flash, Zap } from "lucide-react";
+import { Zap, LightbulbIcon, BrainCircuit } from "lucide-react";
 
 const LevelSelect = () => {
   const navigate = useNavigate();
@@ -124,9 +124,9 @@ const LevelCard = ({ level, selected, onToggle }: LevelCardProps) => {
   };
   
   const levelIcons = {
-    1: <Flash size={24} className="text-blue-400" />,
-    2: <Zap size={24} className="text-yellow-400" />,
-    3: <Flash size={24} className="text-purple-400" />
+    1: <Zap size={24} className="text-blue-400" />,
+    2: <LightbulbIcon size={24} className="text-yellow-400" />,
+    3: <BrainCircuit size={24} className="text-purple-400" />
   };
   
   return (
