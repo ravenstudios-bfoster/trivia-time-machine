@@ -144,8 +144,8 @@ export const sampleQuestions: Question[] = [
     timeLimit: 30,
     options: [
       { id: 'q2-4-a', text: '"Time waits for no man!"', isCorrect: false },
-      { id: 'q2-4-b', text: '"Roads? Where we're going, we don't need roads."', isCorrect: true },
-      { id: 'q2-4-c', text: '"The future isn't written yet."', isCorrect: false },
+      { id: 'q2-4-b', text: '"Roads? Where we\'re going, we don\'t need roads."', isCorrect: true },
+      { id: 'q2-4-c', text: '"The future isn\'t written yet."', isCorrect: false },
       { id: 'q2-4-d', text: '"Time travel is never simple!"', isCorrect: false },
       { id: 'q2-4-e', text: '"All of the above"', isCorrect: false }
     ],
