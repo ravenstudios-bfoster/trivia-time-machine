@@ -98,7 +98,7 @@ const Index = () => {
                 setPlayerName(e.target.value);
                 if (e.target.value.trim()) setNameError("");
               }}
-              className="text-lg p-4 bg-black/30 border-blue-500/50 focus:border-blue-400"
+              className="text-lg p-4 bg-black/30 border-blue-500/50 focus:border-blue-400 text-white placeholder:text-blue-300/70"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleStartGame();
