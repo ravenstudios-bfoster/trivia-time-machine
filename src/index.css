@@ -1,141 +1,110 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+ 
 @layer base {
   :root {
-    --background: 235 60% 10%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
 
-    --card: 235 50% 15%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 235 50% 15%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 100% 50%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+ 
+    --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
-
-    --secondary: 31 100% 58%;
+ 
+    --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 235 30% 20%;
-    --muted-foreground: 215 20.2% 75.1%;
-
-    --accent: 311 100% 50%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 100% 60%;
+ 
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+ 
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 235 30% 20%;
-    --input: 235 30% 20%;
-    --ring: 210 100% 50%;
-
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+ 
     --radius: 0.5rem;
-
-    --sidebar-background: 235 60% 10%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 210 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 235 30% 20%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 235 30% 20%;
-    --sidebar-ring: 210 100% 50%;
+  }
+ 
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+ 
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+ 
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
-
+ 
 @layer base {
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground font-['Roboto'] overflow-x-hidden min-h-screen;
-    background-image: radial-gradient(circle at center, rgba(0, 163, 255, 0.1) 0%, transparent 70%),
-                     linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.5) 100%);
-    background-size: 100% 100%, 100% 100%;
-    background-position: center, center;
-    background-attachment: fixed;
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-@layer components {
-  .bttf-heading {
-    @apply font-['Orbitron'] uppercase tracking-wider;
-    text-shadow: 0 0 10px rgba(0, 163, 255, 0.7), 0 0 20px rgba(0, 163, 255, 0.5);
-  }
-  
-  .time-circuit {
-    @apply font-['Orbitron'] bg-bttf-black p-4 border-2 border-bttf-silver rounded-md text-center;
-  }
-  
-  .neon-text {
-    @apply font-['Orbitron'] font-bold;
-    text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
-  }
-  
-  .chrome-text {
-    @apply font-['Orbitron'] font-extrabold tracking-wider uppercase;
-    background: linear-gradient(to bottom, #f0f0f0 0%, #c0c0c0 50%, #f0f0f0 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.5));
-  }
-  
-  .flux-container {
-    @apply relative p-6 rounded-lg overflow-hidden;
-    background: rgba(18, 18, 24, 0.7);
-    box-shadow: 0 0 15px rgba(0, 163, 255, 0.5), inset 0 0 10px rgba(0, 163, 255, 0.3);
-    backdrop-filter: blur(10px);
-  }
-  
-  .delorean-panel {
-    @apply bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-md border border-zinc-700;
-    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1);
-  }
-  
-  .glow-button {
-    @apply relative inline-flex items-center justify-center px-6 py-3 overflow-hidden font-medium transition-all rounded-md;
-    background: linear-gradient(45deg, #FF7A00, #FFC72C);
-    box-shadow: 0 0 12px rgba(255, 122, 0, 0.7), 0 0 20px rgba(255, 122, 0, 0.5);
-  }
-  
-  .glow-button:hover {
-    @apply animate-glow-pulse;
-    transform: translateY(-2px);
-  }
-  
-  .time-circuit-display {
-    @apply font-['Orbitron'] bg-black text-center p-2 rounded border-2;
-  }
-  
-  .blue-circuit {
-    @apply border-bttf-blue text-bttf-blue;
-    box-shadow: inset 0 0 5px rgba(0, 163, 255, 0.5), 0 0 5px rgba(0, 163, 255, 0.5);
-  }
-  
-  .yellow-circuit {
-    @apply border-bttf-yellow text-bttf-yellow;
-    box-shadow: inset 0 0 5px rgba(255, 199, 44, 0.5), 0 0 5px rgba(255, 199, 44, 0.5);
-  }
-  
-  .red-circuit {
-    @apply border-bttf-red text-bttf-red;
-    box-shadow: inset 0 0 5px rgba(255, 49, 49, 0.5), 0 0 5px rgba(255, 49, 49, 0.5);
-  }
-  
-  .grid-background {
-    background-image: linear-gradient(rgba(0, 163, 255, 0.15) 1px, transparent 1px),
-                     linear-gradient(90deg, rgba(0, 163, 255, 0.15) 1px, transparent 1px);
-    background-size: 30px 30px;
-    background-position: center;
-    perspective: 1000px;
-    transform-style: preserve-3d;
-    transform: rotateX(45deg);
-  }
+/* Game specific animations and styles */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow {
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.7)); }
+  50% { filter: drop-shadow(0 0 15px rgba(59, 130, 246, 1)); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.animate-glow {
+  animation: glow 2s infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-hover-float {
+  animation: float 3s ease-in-out infinite;
 }
