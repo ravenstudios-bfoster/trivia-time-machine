@@ -112,16 +112,16 @@ const AdminQuestion = () => {
       <div className="space-y-6">
         {/* Actions */}
         <div className="flex justify-between items-center">
-          <Button variant="outline" onClick={() => navigate("/admin/questions")}>
+          <Button variant="outline" onClick={() => navigate("/admin/questions")} className="border-[#444] text-gray-400 hover:text-white hover:border-[#FF3D00]">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Questions
           </Button>
           <div className="space-x-2">
-            <Button variant="outline" onClick={() => navigate(`/admin/questions/${questionId}/edit`)}>
+            <Button variant="outline" onClick={() => navigate(`/admin/questions/${questionId}/edit`)} className="border-[#444] text-gray-400 hover:text-white hover:border-[#FF3D00]">
               <Edit className="h-4 w-4 mr-2" />
               Edit Question
             </Button>
-            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} className="bg-[#FF3D00] hover:opacity-90">
               <Trash2 className="h-4 w-4 mr-2" />
               Delete Question
             </Button>
@@ -129,48 +129,50 @@ const AdminQuestion = () => {
         </div>
 
         {/* Question Content */}
-        <Card>
+        <Card className="border-t-4 border-t-[#FF3D00] bg-[#1a1a1a] shadow-xl">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div>
-                <CardTitle>Question Text</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-2xl font-bold text-[#FF3D00]">Question Text</CardTitle>
+                <CardDescription className="text-gray-400">
                   Level {question.level} - {question.difficulty}
                 </CardDescription>
               </div>
-              <Badge>{question.type}</Badge>
+              <Badge className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white">{question.type}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-lg">{question.text}</p>
+            <p className="text-lg text-white">{question.text}</p>
 
             {/* Question Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span>{question.timeLimit} seconds</span>
+                <Clock className="h-4 w-4 text-[#666]" />
+                <span className="text-white">{question.timeLimit} seconds</span>
               </div>
               <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-muted-foreground" />
-                <span>{question.pointValue} points</span>
+                <Star className="h-4 w-4 text-[#666]" />
+                <span className="text-white">{question.pointValue} points</span>
               </div>
             </div>
 
             {/* Topic */}
             <div className="mt-4">
-              <h3 className="font-medium mb-2">Topic</h3>
-              <Badge variant="outline">{question.topic}</Badge>
+              <h3 className="font-medium mb-2 text-white">Topic</h3>
+              <Badge variant="outline" className="border-[#333] text-[#666] bg-[#222]">
+                {question.topic}
+              </Badge>
             </div>
 
             {/* Answer Options */}
             {(question.type === "multiple-choice" || question.type === "true-false") && (
               <div className="mt-4">
-                <h3 className="font-medium mb-2">Answer Options</h3>
+                <h3 className="font-medium mb-2 text-white">Answer Options</h3>
                 <div className="space-y-2">
                   {question.options?.map((option, index) => (
-                    <div key={index} className={`p-3 rounded-md border ${index === question.correctAnswer ? "border-green-500 bg-green-50 dark:bg-green-950" : "border-border"}`}>
-                      {option}
-                      {index === question.correctAnswer && <Badge className="ml-2 bg-green-500">Correct Answer</Badge>}
+                    <div key={index} className={`p-3 rounded-md border ${index === question.correctAnswer ? "border-[#FF3D00] bg-[#222]" : "border-[#333] bg-[#222]"}`}>
+                      <span className="text-white">{option}</span>
+                      {index === question.correctAnswer && <Badge className="ml-2 bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white">Correct Answer</Badge>}
                     </div>
                   ))}
                 </div>
@@ -180,28 +182,28 @@ const AdminQuestion = () => {
             {/* Write-in Answer */}
             {question.type === "write-in" && (
               <div className="mt-4">
-                <h3 className="font-medium mb-2">Correct Answer</h3>
-                <div className="p-3 rounded-md border border-green-500 bg-green-50 dark:bg-green-950">{question.correctAnswer}</div>
+                <h3 className="font-medium mb-2 text-white">Correct Answer</h3>
+                <div className="p-3 rounded-md border border-[#FF3D00] bg-[#222] text-white">{question.correctAnswer}</div>
               </div>
             )}
 
             {/* Media */}
             {(question.imageUrl || question.videoUrl) && (
               <div className="mt-4">
-                <h3 className="font-medium mb-2">Media</h3>
+                <h3 className="font-medium mb-2 text-white">Media</h3>
                 <div className="space-y-2">
                   {question.imageUrl && (
                     <div className="flex items-center gap-2">
-                      <Image className="h-4 w-4 text-muted-foreground" />
-                      <a href={question.imageUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      <Image className="h-4 w-4 text-[#666]" />
+                      <a href={question.imageUrl} target="_blank" rel="noopener noreferrer" className="text-[#FF3D00] hover:text-[#FFD700]">
                         View Image
                       </a>
                     </div>
                   )}
                   {question.videoUrl && (
                     <div className="flex items-center gap-2">
-                      <Video className="h-4 w-4 text-muted-foreground" />
-                      <a href={question.videoUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      <Video className="h-4 w-4 text-[#666]" />
+                      <a href={question.videoUrl} target="_blank" rel="noopener noreferrer" className="text-[#FF3D00] hover:text-[#FFD700]">
                         View Video
                       </a>
                     </div>
@@ -213,12 +215,12 @@ const AdminQuestion = () => {
             {/* Hint */}
             {question.hint && (
               <div className="mt-4">
-                <h3 className="font-medium mb-2">Hint</h3>
-                <div className="flex items-start gap-2 p-3 rounded-md border border-border">
-                  <HelpCircle className="h-4 w-4 text-muted-foreground mt-1" />
+                <h3 className="font-medium mb-2 text-white">Hint</h3>
+                <div className="flex items-start gap-2 p-3 rounded-md border border-[#333] bg-[#222]">
+                  <HelpCircle className="h-4 w-4 text-[#FF3D00] mt-1" />
                   <div>
-                    <p>{question.hint}</p>
-                    <p className="text-sm text-muted-foreground mt-1">Penalty: {question.hintPenalty} points</p>
+                    <p className="text-white">{question.hint}</p>
+                    <p className="text-sm text-[#666] mt-1">Penalty: {question.hintPenalty} points</p>
                   </div>
                 </div>
               </div>
@@ -227,8 +229,8 @@ const AdminQuestion = () => {
             {/* Explanation */}
             {question.explanation && (
               <div className="mt-4">
-                <h3 className="font-medium mb-2">Explanation</h3>
-                <p className="text-muted-foreground">{question.explanation}</p>
+                <h3 className="font-medium mb-2 text-white">Explanation</h3>
+                <p className="text-[#666]">{question.explanation}</p>
               </div>
             )}
           </CardContent>
@@ -237,14 +239,14 @@ const AdminQuestion = () => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-[#1a1a1a] border border-[#333]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Question</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to delete this question? This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle className="text-white">Delete Question</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#666]">Are you sure you want to delete this question? This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel className="border-[#444] text-gray-400 hover:text-white hover:border-[#FF3D00] bg-transparent">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-[#FF3D00] text-white hover:opacity-90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

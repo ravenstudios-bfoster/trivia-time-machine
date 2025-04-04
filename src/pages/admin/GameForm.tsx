@@ -22,21 +22,67 @@ import { toast } from "sonner";
 import { Save, ArrowLeft, Plus, Clock, Users, HelpCircle, Trash2, Search, Filter, Car, Calendar, Settings, ListChecks } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Timestamp } from "firebase/firestore";
-import { format } from "date-fns";
+import { format, addMinutes } from "date-fns";
 import QuestionSelectorDialog from "../../components/QuestionSelectorDialog";
 import { doc, addDoc, collection, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 // Form schema
-const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  maxPlayers: z.number().min(1, "At least 1 player is required"),
-  isPublic: z.boolean().default(false),
-  scheduledStartTime: z.string().optional(),
-  expirationTime: z.string().optional(),
-  status: z.enum(["draft", "scheduled", "active", "completed", "cancelled"]).default("draft"),
-});
+const formSchema = z
+  .object({
+    title: z.string().min(1, "Title is required"),
+    description: z.string().optional(),
+    maxParticipants: z.number().min(1, "At least 1 player is required"),
+    isPublic: z.boolean().default(false),
+    scheduledStartTime: z.string().optional(),
+    expirationTime: z.string().optional(),
+    status: z.enum(["draft", "scheduled", "active", "completed", "ended", "cancelled"]).default("draft"),
+  })
+  .refine(
+    (data) => {
+      // If either start time or expiration time is set, both must be set
+      if (data.scheduledStartTime || data.expirationTime) {
+        if (!data.scheduledStartTime || !data.expirationTime) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "Both start time and expiration time must be set for scheduled games",
+      path: ["scheduledStartTime"],
+    }
+  )
+  .refine(
+    (data) => {
+      // If start time is set, it must be at least 15 minutes in the future
+      if (data.scheduledStartTime) {
+        const startTime = new Date(data.scheduledStartTime);
+        const minStartTime = addMinutes(new Date(), 15);
+        return startTime >= minStartTime;
+      }
+      return true;
+    },
+    {
+      message: "Start time must be at least 15 minutes in the future",
+      path: ["scheduledStartTime"],
+    }
+  )
+  .refine(
+    (data) => {
+      // If both times are set, expiration must be after start
+      if (data.scheduledStartTime && data.expirationTime) {
+        const startTime = new Date(data.scheduledStartTime);
+        const endTime = new Date(data.expirationTime);
+        return endTime > startTime;
+      }
+      return true;
+    },
+    {
+      message: "Expiration time must be after start time",
+      path: ["expirationTime"],
+    }
+  );
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -60,7 +106,7 @@ const GameForm = () => {
     defaultValues: {
       title: "",
       description: "",
-      maxPlayers: 10,
+      maxParticipants: 10,
       isPublic: false,
       status: "draft",
     },
@@ -84,7 +130,7 @@ const GameForm = () => {
         form.reset({
           title: game.title,
           description: game.description || "",
-          maxPlayers: game.maxPlayers,
+          maxParticipants: game.maxParticipants,
           isPublic: game.isPublic,
           status: game.status,
           scheduledStartTime: game.scheduledStartTime ? format(game.scheduledStartTime.toDate(), "yyyy-MM-dd'T'HH:mm") : "",
@@ -94,6 +140,7 @@ const GameForm = () => {
         // Load game questions
         const questions = await getGameQuestions(gameId);
         setGameQuestions(questions);
+        setSelectedQuestions(questions); // Initialize selected questions with existing game questions
       } catch (error) {
         console.error("Error loading game:", error);
         toast.error("Failed to load game");
@@ -133,20 +180,28 @@ const GameForm = () => {
       const gameData = {
         title: values.title,
         description: values.description,
-        maxPlayers: values.maxPlayers,
+        maxParticipants: values.maxParticipants,
         isPublic: values.isPublic,
-        status: values.status as GameStatus,
+        status: values.scheduledStartTime ? "scheduled" : "draft",
         scheduledStartTime: values.scheduledStartTime ? Timestamp.fromDate(new Date(values.scheduledStartTime)) : null,
         expirationTime: values.expirationTime ? Timestamp.fromDate(new Date(values.expirationTime)) : null,
         adminId: currentUser.uid,
         currentQuestionIndex: 0,
-        questionIds: selectedQuestions.map((q) => q.id),
         updatedAt: Timestamp.now(),
       };
 
       if (gameId) {
         // Update existing game
         await updateDoc(doc(db, "games", gameId), gameData);
+
+        // Update questions
+        if (selectedQuestions.length > 0) {
+          await addQuestionsToGame(
+            gameId,
+            selectedQuestions.map((q) => q.id)
+          );
+        }
+
         toast.success("Game updated successfully!");
       } else {
         // Create new game
@@ -154,7 +209,16 @@ const GameForm = () => {
           ...gameData,
           createdAt: Timestamp.now(),
         };
-        await addDoc(collection(db, "games"), newGameData);
+        const gameRef = await addDoc(collection(db, "games"), newGameData);
+
+        // Add questions to the new game
+        if (selectedQuestions.length > 0) {
+          await addQuestionsToGame(
+            gameRef.id,
+            selectedQuestions.map((q) => q.id)
+          );
+        }
+
         toast.success("Game created successfully!");
       }
 
@@ -373,7 +437,7 @@ const GameForm = () => {
                   <TabsContent value="settings" className="space-y-4">
                     <FormField
                       control={form.control}
-                      name="maxPlayers"
+                      name="maxParticipants"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-gray-300">Max Players</FormLabel>
@@ -444,11 +508,18 @@ const GameForm = () => {
                       </Button>
                     )}
                     {currentStep < steps.length - 1 ? (
-                      <Button type="button" onClick={() => handleStepChange(currentStep + 1)} className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
+                      <Button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleStepChange(currentStep + 1);
+                        }}
+                        className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90"
+                      >
                         Next
                       </Button>
                     ) : (
-                      <Button type="submit" disabled={isLoading} className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90 disabled:opacity-50">
+                      <Button type="submit" disabled={isLoading || selectedQuestions.length === 0} className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90 disabled:opacity-50">
                         {isLoading ? (
                           <>
                             <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />

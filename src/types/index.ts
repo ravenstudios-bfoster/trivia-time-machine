@@ -93,22 +93,29 @@ export type GameAction =
 // Admin-specific types
 export type PlayerStatus = "active" | "completed" | "kicked";
 
-export type GameStatus = "draft" | "scheduled" | "active" | "completed" | "cancelled";
+export type GameStatus = "draft" | "scheduled" | "active" | "completed" | "ended" | "cancelled";
 
 export interface Game {
   id: string;
   title: string;
   description?: string;
-  maxPlayers: number;
+  maxParticipants: number;
   isPublic: boolean;
+  scheduledStartTime?: Timestamp;
+  expirationTime?: Timestamp;
   status: GameStatus;
-  scheduledStartTime: Timestamp | null;
-  expirationTime: Timestamp | null;
-  adminId: string;
-  currentQuestionIndex: number;
-  questionIds: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  startedAt?: Timestamp;
+  endedAt?: Timestamp;
+  lastStatusUpdate?: Timestamp;
+  timeLimit?: number;
+  enableHints: boolean;
+  enableBonusQuestions: boolean;
+  enablePostGameReview: boolean;
+  allowedLevels: string[];
+  currentQuestionIndex: number;
+  adminId: string;
 }
 
 // Game Question Junction

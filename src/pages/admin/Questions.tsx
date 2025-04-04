@@ -113,22 +113,21 @@ const AdminQuestions = () => {
 
   return (
     <AdminLayout title="Questions Management" subtitle="Create and manage your trivia questions" breadcrumbs={[{ label: "Questions", href: "/admin/questions" }]}>
-      {/* Filters and Actions */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="relative w-full md:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search questions..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#666]" />
+            <Input placeholder="Search questions..." className="pl-8 bg-[#222] border-[#333] text-white placeholder:text-[#666]" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]">
               <Filter className="h-4 w-4 mr-2" />
               {showFilters ? "Hide Filters" : "Show Filters"}
             </Button>
 
             <Link to="/admin/questions/new">
-              <Button>
+              <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Question
               </Button>
@@ -137,47 +136,69 @@ const AdminQuestions = () => {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-4 border rounded-md bg-muted/20">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-4 border rounded-md bg-[#111] border-[#333]">
             <div>
-              <label className="text-sm font-medium mb-1 block">Level</label>
+              <label className="text-sm font-medium mb-1 block text-white">Level</label>
               <Select value={levelFilter.toString()} onValueChange={(value) => setLevelFilter(value === "all" ? "all" : (parseInt(value) as Level))}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#222] border-[#333] text-white">
                   <SelectValue placeholder="Filter by level" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Levels</SelectItem>
-                  <SelectItem value="1">Level 1</SelectItem>
-                  <SelectItem value="2">Level 2</SelectItem>
-                  <SelectItem value="3">Level 3</SelectItem>
+                <SelectContent className="bg-[#222] border-[#333]">
+                  <SelectItem value="all" className="text-white hover:bg-[#333]">
+                    All Levels
+                  </SelectItem>
+                  <SelectItem value="1" className="text-white hover:bg-[#333]">
+                    Level 1
+                  </SelectItem>
+                  <SelectItem value="2" className="text-white hover:bg-[#333]">
+                    Level 2
+                  </SelectItem>
+                  <SelectItem value="3" className="text-white hover:bg-[#333]">
+                    Level 3
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">Question Type</label>
+              <label className="text-sm font-medium mb-1 block text-white">Question Type</label>
               <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as QuestionType | "all")}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#222] border-[#333] text-white">
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                  <SelectItem value="true-false">True/False</SelectItem>
-                  <SelectItem value="write-in">Write-in</SelectItem>
+                <SelectContent className="bg-[#222] border-[#333]">
+                  <SelectItem value="all" className="text-white hover:bg-[#333]">
+                    All Types
+                  </SelectItem>
+                  <SelectItem value="multiple-choice" className="text-white hover:bg-[#333]">
+                    Multiple Choice
+                  </SelectItem>
+                  <SelectItem value="true-false" className="text-white hover:bg-[#333]">
+                    True/False
+                  </SelectItem>
+                  <SelectItem value="write-in" className="text-white hover:bg-[#333]">
+                    Write-in
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">Media</label>
+              <label className="text-sm font-medium mb-1 block text-white">Media</label>
               <Select value={mediaFilter} onValueChange={(value) => setMediaFilter(value as "all" | "with-media" | "no-media")}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#222] border-[#333] text-white">
                   <SelectValue placeholder="Filter by media" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Questions</SelectItem>
-                  <SelectItem value="with-media">With Media</SelectItem>
-                  <SelectItem value="no-media">No Media</SelectItem>
+                <SelectContent className="bg-[#222] border-[#333]">
+                  <SelectItem value="all" className="text-white hover:bg-[#333]">
+                    All Questions
+                  </SelectItem>
+                  <SelectItem value="with-media" className="text-white hover:bg-[#333]">
+                    With Media
+                  </SelectItem>
+                  <SelectItem value="no-media" className="text-white hover:bg-[#333]">
+                    No Media
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -185,71 +206,72 @@ const AdminQuestions = () => {
         )}
       </div>
 
-      {/* Questions Table */}
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <div className="animate-spin h-8 w-8 border-4 border-[#FF3D00] border-t-transparent rounded-full" />
         </div>
       ) : filteredQuestions.length > 0 ? (
-        <div className="rounded-md border">
+        <div className="rounded-md border border-[#333] bg-[#111]">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[50%]">Question</TableHead>
-                <TableHead>Level</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Media</TableHead>
-                <TableHead>Points</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+              <TableRow className="hover:bg-[#222] border-b border-[#333]">
+                <TableHead className="text-[#666] w-[50%]">Question</TableHead>
+                <TableHead className="text-[#666]">Level</TableHead>
+                <TableHead className="text-[#666]">Type</TableHead>
+                <TableHead className="text-[#666]">Media</TableHead>
+                <TableHead className="text-[#666]">Points</TableHead>
+                <TableHead className="text-right text-[#666]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredQuestions.map((question) => (
-                <TableRow key={question.id}>
-                  <TableCell className="font-medium">
+                <TableRow key={question.id} className="hover:bg-[#222] border-b border-[#333]">
+                  <TableCell className="font-medium text-white">
                     <div className="truncate max-w-md" title={question.text}>
                       {question.text}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">Level {question.level}</Badge>
+                    <Badge variant="outline" className="border-[#FFD700] text-[#FFD700]">
+                      Level {question.level}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{getQuestionTypeLabel(question.type)}</TableCell>
+                  <TableCell className="text-[#666]">{getQuestionTypeLabel(question.type)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       {question.imageUrl && (
-                        <Badge variant="secondary" className="flex items-center gap-1">
+                        <Badge variant="secondary" className="bg-[#222] text-[#666] flex items-center gap-1">
                           <Image className="h-3 w-3" />
                           Image
                         </Badge>
                       )}
                       {question.videoUrl && (
-                        <Badge variant="secondary" className="flex items-center gap-1">
+                        <Badge variant="secondary" className="bg-[#222] text-[#666] flex items-center gap-1">
                           <Video className="h-3 w-3" />
                           Video
                         </Badge>
                       )}
-                      {!hasMedia(question) && <span className="text-muted-foreground text-sm">None</span>}
+                      {!hasMedia(question) && <span className="text-[#666] text-sm">None</span>}
                     </div>
                   </TableCell>
-                  <TableCell>{question.pointValue}</TableCell>
+                  <TableCell className="text-[#666]">{question.pointValue}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="text-[#666] hover:text-white hover:bg-[#222]">
                           <MoreHorizontal className="h-4 w-4" />
                           <span className="sr-only">Actions</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
                         <Link to={`/admin/questions/${question.id}`}>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
                             <Edit className="h-4 w-4 mr-2" />
                             Edit Question
                           </DropdownMenuItem>
                         </Link>
 
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteQuestionId(question.id)}>
+                        <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteQuestionId(question.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -262,13 +284,13 @@ const AdminQuestions = () => {
           </Table>
         </div>
       ) : (
-        <div className="text-center p-12 border rounded-md">
-          <h3 className="text-lg font-medium mb-2">No questions found</h3>
-          <p className="text-muted-foreground mb-6">
+        <div className="text-center p-12 border rounded-md bg-[#111] border-[#333]">
+          <h3 className="text-lg font-medium mb-2 text-white">No questions found</h3>
+          <p className="text-[#666] mb-6">
             {searchTerm || levelFilter !== "all" || typeFilter !== "all" || mediaFilter !== "all" ? "Try adjusting your filters" : "Create your first question to get started"}
           </p>
           <Link to="/admin/questions/new">
-            <Button>
+            <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
               <Plus className="h-4 w-4 mr-2" />
               Add Question
             </Button>
@@ -276,16 +298,15 @@ const AdminQuestions = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteQuestionId} onOpenChange={() => setDeleteQuestionId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-[#111] border-[#333]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently delete this question. This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle className="text-white">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#666]">This will permanently delete this question. This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteQuestion}>
+            <AlertDialogCancel className="bg-[#222] text-white border-[#333] hover:bg-[#333] hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90" onClick={handleDeleteQuestion}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

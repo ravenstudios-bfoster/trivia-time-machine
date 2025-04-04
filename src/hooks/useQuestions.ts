@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Question } from "@/types";
+import { getQuestions } from "@/lib/firebase";
 
 export function useQuestions() {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -9,21 +8,17 @@ export function useQuestions() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    async function fetchQuestions() {
+    const fetchQuestions = async () => {
       try {
-        const questionsRef = collection(db, "questions");
-        const snapshot = await getDocs(questionsRef);
-        const fetchedQuestions = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Question[];
+        setIsLoading(true);
+        const fetchedQuestions = await getQuestions();
         setQuestions(fetchedQuestions);
       } catch (err) {
-        setError(err as Error);
+        setError(err instanceof Error ? err : new Error("Failed to fetch questions"));
       } finally {
         setIsLoading(false);
       }
-    }
+    };
 
     fetchQuestions();
   }, []);

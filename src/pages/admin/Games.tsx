@@ -10,10 +10,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { getGames, deleteGame, updateGame } from "@/lib/firebase";
 import { Game, GameStatus } from "@/types";
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Users, Play, StopCircle } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Users, Play, StopCircle, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Timestamp } from "firebase/firestore";
+import { Badge } from "@/components/ui/badge";
 
 const AdminGames = () => {
   const [games, setGames] = useState<Game[]>([]);
@@ -25,6 +26,8 @@ const AdminGames = () => {
   const [endGameId, setEndGameId] = useState<string | null>(null);
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [visibilityFilter, setVisibilityFilter] = useState<"all" | "public" | "private">("all");
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -102,27 +105,14 @@ const AdminGames = () => {
     }
   };
 
-  const handleEndGame = async () => {
-    if (!endGameId) return;
-
+  const handleEndGame = async (gameId: string) => {
     try {
-      const gameToEnd = games.find((game) => game.id === endGameId);
-      if (!gameToEnd) return;
-
-      await updateGame(endGameId, {
-        status: "ended",
-        endedAt: Timestamp.fromDate(new Date()),
-      });
-
-      // Update local state
-      setGames(games.map((game) => (game.id === endGameId ? { ...game, status: "ended" as GameStatus } : game)));
-
+      await updateGame(gameId, { status: "completed" });
+      setGames(games.map((game) => (game.id === gameId ? { ...game, status: "completed" } : game)));
+      setFilteredGames(filteredGames.map((game) => (game.id === gameId ? { ...game, status: "completed" } : game)));
       toast.success("Game ended successfully");
     } catch (error) {
-      console.error("Error ending game:", error);
       toast.error("Failed to end game");
-    } finally {
-      setEndGameId(null);
     }
   };
 
@@ -152,150 +142,178 @@ const AdminGames = () => {
         return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
       case "completed":
         return "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300";
-      case "ended":
+      case "cancelled":
         return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+      case "draft":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300";
     }
   };
 
+  const getStatusBadgeVariant = (status: GameStatus) => {
+    switch (status) {
+      case "scheduled":
+        return "default";
+      case "active":
+        return "destructive";
+      case "completed":
+        return "outline";
+      case "cancelled":
+        return "destructive";
+      case "draft":
+        return "default";
+      default:
+        return "default";
+    }
+  };
+
+  const handleStartGame = async (gameId: string) => {
+    try {
+      await updateGame(gameId, { status: "active" });
+      setGames(games.map((game) => (game.id === gameId ? { ...game, status: "active" } : game)));
+      setFilteredGames(filteredGames.map((game) => (game.id === gameId ? { ...game, status: "active" } : game)));
+      toast.success("Game started successfully");
+    } catch (error) {
+      toast.error("Failed to start game");
+    }
+  };
+
   return (
     <AdminLayout title="Games Management" subtitle="Create and manage your trivia games" breadcrumbs={[{ label: "Games", href: "/admin/games" }]}>
-      {/* Filters and Actions */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search games..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            </div>
-
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as GameStatus | "all")}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="ended">Ended by Admin</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#666]" />
+            <Input placeholder="Search games..." className="pl-8 bg-[#222] border-[#333] text-white placeholder:text-[#666]" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
 
           <div className="flex gap-2">
-            {selectedGames.size > 0 && (
-              <Button variant="destructive" onClick={() => setShowBulkDeleteDialog(true)}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Selected ({selectedGames.size})
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]">
+              <Filter className="h-4 w-4 mr-2" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </Button>
+
             <Link to="/admin/games/new">
-              <Button>
+              <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Game
+                Add Game
               </Button>
             </Link>
           </div>
         </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-4 border rounded-md bg-[#111] border-[#333]">
+            <div>
+              <label className="text-sm font-medium mb-1 block text-white">Status</label>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as GameStatus | "all")}>
+                <SelectTrigger className="bg-[#222] border-[#333] text-white">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#222] border-[#333]">
+                  <SelectItem value="all" className="text-white hover:bg-[#333]">
+                    All Status
+                  </SelectItem>
+                  <SelectItem value="draft" className="text-white hover:bg-[#333]">
+                    Draft
+                  </SelectItem>
+                  <SelectItem value="scheduled" className="text-white hover:bg-[#333]">
+                    Scheduled
+                  </SelectItem>
+                  <SelectItem value="active" className="text-white hover:bg-[#333]">
+                    Active
+                  </SelectItem>
+                  <SelectItem value="completed" className="text-white hover:bg-[#333]">
+                    Completed
+                  </SelectItem>
+                  <SelectItem value="cancelled" className="text-white hover:bg-[#333]">
+                    Cancelled
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1 block text-white">Visibility</label>
+              <Select value={visibilityFilter} onValueChange={(value) => setVisibilityFilter(value as "all" | "public" | "private")}>
+                <SelectTrigger className="bg-[#222] border-[#333] text-white">
+                  <SelectValue placeholder="Filter by visibility" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#222] border-[#333]">
+                  <SelectItem value="all" className="text-white hover:bg-[#333]">
+                    All Games
+                  </SelectItem>
+                  <SelectItem value="public" className="text-white hover:bg-[#333]">
+                    Public Only
+                  </SelectItem>
+                  <SelectItem value="private" className="text-white hover:bg-[#333]">
+                    Private Only
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Games Table */}
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <div className="animate-spin h-8 w-8 border-4 border-[#FF3D00] border-t-transparent rounded-full" />
         </div>
       ) : filteredGames.length > 0 ? (
-        <div className="rounded-md border">
+        <div className="rounded-md border border-[#333] bg-[#111]">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox checked={selectedGames.size === filteredGames.length} onCheckedChange={toggleSelectAll} aria-label="Select all games" />
-                </TableHead>
-                <TableHead>Game Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Scheduled Time</TableHead>
-                <TableHead>Levels</TableHead>
-                <TableHead>Players</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+              <TableRow className="hover:bg-[#222] border-b border-[#333]">
+                <TableHead className="text-[#666]">Game Title</TableHead>
+                <TableHead className="text-[#666]">Status</TableHead>
+                <TableHead className="text-[#666]">Players</TableHead>
+                <TableHead className="text-[#666]">Created</TableHead>
+                <TableHead className="text-[#666]">Visibility</TableHead>
+                <TableHead className="text-right text-[#666]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredGames.map((game) => (
-                <TableRow key={game.id}>
+                <TableRow key={game.id} className="hover:bg-[#222] border-b border-[#333]">
+                  <TableCell className="font-medium text-white">{game.title}</TableCell>
                   <TableCell>
-                    <Checkbox checked={selectedGames.has(game.id)} onCheckedChange={() => toggleGameSelection(game.id)} aria-label={`Select ${game.title}`} />
+                    <Badge variant={getStatusBadgeVariant(game.status)} className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white">
+                      {game.status}
+                    </Badge>
                   </TableCell>
-                  <TableCell className="font-medium">{game.title}</TableCell>
+                  <TableCell className="text-[#666]">{game.maxPlayers}</TableCell>
+                  <TableCell className="text-[#666]">{format(game.createdAt.toDate(), "MMM d, yyyy")}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(game.status)}`}>{game.status}</span>
+                    <Badge variant="outline" className={game.isPublic ? "border-[#FFD700] text-[#FFD700]" : "border-[#666] text-[#666]"}>
+                      {game.isPublic ? "Public" : "Private"}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{game.createdAt ? format(game.createdAt.toDate(), "MMM d, yyyy") : "N/A"}</TableCell>
-                  <TableCell>
-                    {game.scheduledStartTime ? (
-                      <div className="text-sm">
-                        <div>Start: {format(game.scheduledStartTime.toDate(), "MMM d, h:mm a")}</div>
-                        {game.expirationTime && <div className="text-muted-foreground">End: {format(game.expirationTime.toDate(), "MMM d, h:mm a")}</div>}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">Manual scheduling</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {game.allowedLevels
-                      ? game.allowedLevels
-                          .sort()
-                          .map((level) => `L${level}`)
-                          .join(", ")
-                      : "None"}
-                  </TableCell>
-                  <TableCell>{game.participantCount || 0}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="text-[#666] hover:text-white hover:bg-[#222]">
                           <MoreHorizontal className="h-4 w-4" />
                           <span className="sr-only">Actions</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
                         <Link to={`/admin/games/${game.id}`}>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
                             <Edit className="h-4 w-4 mr-2" />
-                            View/Edit
+                            Edit Game
                           </DropdownMenuItem>
                         </Link>
-
-                        <Link to={`/admin/games/${game.id}/players`}>
-                          <DropdownMenuItem>
-                            <Users className="h-4 w-4 mr-2" />
-                            Manage Players
-                          </DropdownMenuItem>
-                        </Link>
-
-                        {game.status === "scheduled" && !game.scheduledStartTime && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              // Logic to start game
-                              toast.info("Game start functionality to be implemented");
-                            }}
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            Start Game
-                          </DropdownMenuItem>
-                        )}
-
-                        {game.status === "active" && !game.expirationTime && (
-                          <DropdownMenuItem onClick={() => setEndGameId(game.id)}>
-                            <StopCircle className="h-4 w-4 mr-2" />
-                            End Game
-                          </DropdownMenuItem>
-                        )}
-
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteGameId(game.id)}>
+                        <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer" onClick={() => handleStartGame(game.id)}>
+                          <Play className="h-4 w-4 mr-2" />
+                          Start Game
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer" onClick={() => handleEndGame(game.id)}>
+                          <StopCircle className="h-4 w-4 mr-2" />
+                          End Game
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteGameId(game.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -308,62 +326,29 @@ const AdminGames = () => {
           </Table>
         </div>
       ) : (
-        <div className="text-center p-12 border rounded-md">
-          <h3 className="text-lg font-medium mb-2">No games found</h3>
-          <p className="text-muted-foreground mb-6">{searchTerm || statusFilter !== "all" ? "Try adjusting your filters" : "Create your first game to get started"}</p>
+        <div className="text-center p-12 border rounded-md bg-[#111] border-[#333]">
+          <h3 className="text-lg font-medium mb-2 text-white">No games found</h3>
+          <p className="text-[#666] mb-6">{searchTerm || statusFilter !== "all" || visibilityFilter !== "all" ? "Try adjusting your filters" : "Create your first game to get started"}</p>
           <Link to="/admin/games/new">
-            <Button>
+            <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
               <Plus className="h-4 w-4 mr-2" />
-              Create Game
+              Add Game
             </Button>
           </Link>
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteGameId} onOpenChange={() => setDeleteGameId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-[#111] border-[#333]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently delete this game and all associated player data. This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle className="text-white">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#666]">This will permanently delete this game. This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteGame}>
+            <AlertDialogCancel className="bg-[#222] text-white border-[#333] hover:bg-[#333] hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90" onClick={handleDeleteGame}>
               Delete
             </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Bulk Delete Confirmation Dialog */}
-      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Multiple Games</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedGames.size} games? This will permanently delete these games and all associated player data. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleBulkDelete}>
-              Delete {selectedGames.size} Games
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* End Game Confirmation Dialog */}
-      <AlertDialog open={!!endGameId} onOpenChange={() => setEndGameId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>End this game?</AlertDialogTitle>
-            <AlertDialogDescription>This will end the game for all players and finalize scores. Players will no longer be able to join or continue playing.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleEndGame}>End Game</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

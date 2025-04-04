@@ -72,31 +72,31 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b border-border bg-gradient-to-r from-background to-muted">
+    <div className="min-h-screen flex flex-col bg-[#0a0a0a]">
+      <header className="border-b border-[#333] bg-[#111]">
         <div className="container py-4 flex justify-between items-center">
           <Link to="/admin/dashboard" className="flex items-center gap-3 group">
             <div className="w-10 h-10 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-bttf-yellow to-bttf-orange rounded-full animate-flux-capacitor" />
-              <div className="absolute inset-2 bg-background rounded-full" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FF3D00] rounded-full animate-[pulse_2s_ease-in-out_infinite]" />
+              <div className="absolute inset-2 bg-[#111] rounded-full" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-1 h-5 bg-bttf-blue animate-pulse" />
-                <div className="w-5 h-1 bg-bttf-blue animate-pulse absolute" />
-                <div className="w-3 h-3 border-2 border-bttf-blue rounded-full absolute animate-pulse" />
+                <div className="w-1 h-5 bg-[#00f7ff] animate-[pulse_1s_ease-in-out_infinite]" />
+                <div className="w-5 h-1 bg-[#00f7ff] animate-[pulse_1s_ease-in-out_infinite] absolute" />
+                <div className="w-3 h-3 border-2 border-[#00f7ff] rounded-full absolute animate-[pulse_1s_ease-in-out_infinite]" />
               </div>
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-bttf-yellow to-bttf-orange">Trivia Admin</h1>
-              <p className="text-sm text-muted-foreground">Back to the Future Edition</p>
+              <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#FFD700] to-[#FF3D00] drop-shadow-[0_0_10px_rgba(255,61,0,0.5)]">Trivia Admin</h1>
+              <p className="text-sm text-[#666]">Back to the Future Edition</p>
             </div>
           </Link>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-[#666]">
               {currentUser.email}
-              {isSuperAdmin && <span className="ml-2 px-2 py-0.5 text-xs bg-gradient-to-r from-bttf-yellow to-bttf-orange text-background font-medium rounded-full">Super Admin</span>}
+              {isSuperAdmin && <span className="ml-2 px-2 py-0.5 text-xs bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-[#111] font-medium rounded-full">Super Admin</span>}
             </span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]">
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
@@ -106,14 +106,16 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
 
       <div className="flex flex-1">
         {/* Sidebar */}
-        <aside className="w-64 border-r border-border p-4 hidden md:block">
+        <aside className="w-64 border-r border-[#333] p-4 hidden md:block bg-[#111]">
           <nav className="space-y-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 to={item.href}
-                className={`flex items-center px-3 py-2 rounded-md text-sm ${
-                  location.pathname === item.href || location.pathname.startsWith(`${item.href}/`) ? "bg-muted font-medium" : "hover:bg-muted/50"
+                className={`flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
+                  location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
+                    ? "bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white font-medium"
+                    : "text-[#666] hover:text-white hover:bg-[#222]"
                 }`}
               >
                 {item.icon}
@@ -127,17 +129,17 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
         <main className="flex-1 p-6">
           {/* Breadcrumbs */}
           {breadcrumbs.length > 0 && (
-            <div className="flex items-center text-sm text-muted-foreground mb-4">
-              <Link to="/admin/dashboard" className="hover:text-foreground">
+            <div className="flex items-center text-sm text-[#666] mb-4">
+              <Link to="/admin/dashboard" className="hover:text-white transition-colors">
                 Admin
               </Link>
               {breadcrumbs.map((crumb, index) => (
                 <div key={crumb.href} className="flex items-center">
                   <ChevronRight className="h-4 w-4 mx-1" />
                   {index === breadcrumbs.length - 1 ? (
-                    <span className="text-foreground">{crumb.label}</span>
+                    <span className="text-white">{crumb.label}</span>
                   ) : (
-                    <Link to={crumb.href} className="hover:text-foreground">
+                    <Link to={crumb.href} className="hover:text-white transition-colors">
                       {crumb.label}
                     </Link>
                   )}
@@ -148,11 +150,11 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
 
           {/* Page header */}
           <div className="mb-6">
-            <h1 className="text-2xl font-bold">{title}</h1>
-            {subtitle && <p className="text-muted-foreground mt-1">{subtitle}</p>}
+            <h1 className="text-2xl font-bold text-white">{title}</h1>
+            {subtitle && <p className="text-[#666] mt-1">{subtitle}</p>}
           </div>
 
-          <Separator className="mb-6" />
+          <Separator className="mb-6 bg-[#333]" />
 
           {/* Page content */}
           {children}

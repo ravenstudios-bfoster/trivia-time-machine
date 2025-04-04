@@ -43,7 +43,7 @@ const GameDetail = () => {
 
         // Load game questions
         const questionsData = await getGameQuestions(gameId);
-        setQuestions(questionsData);
+        setQuestions(questionsData || []); // Ensure we always have an array
 
         // Load participants
         const participantsData = await getParticipants(gameId);
@@ -73,13 +73,23 @@ const GameDetail = () => {
   };
 
   const handleStartGame = async () => {
-    if (!gameId) return;
+    if (!gameId || !game) return;
 
     try {
+      // Check if game is scheduled and not yet ready to start
+      if (game.scheduledStartTime) {
+        const startTime = game.scheduledStartTime.toDate();
+        const now = new Date();
+        if (startTime > now) {
+          toast.error("Cannot start a scheduled game before its start time");
+          return;
+        }
+      }
+
       await startGame(gameId);
 
       // Update local state
-      setGame((prev) => (prev ? { ...prev, status: "active" } : null));
+      setGame((prev) => (prev ? { ...prev, status: "active", startedAt: Timestamp.fromDate(new Date()) } : null));
 
       toast.success("Game started successfully");
       setShowStartDialog(false);
@@ -96,7 +106,7 @@ const GameDetail = () => {
       await endGame(gameId);
 
       // Update local state
-      setGame((prev) => (prev ? { ...prev, status: "ended" } : null));
+      setGame((prev) => (prev ? { ...prev, status: "ended", endedAt: Timestamp.fromDate(new Date()) } : null));
 
       toast.success("Game ended successfully");
       setShowEndDialog(false);
@@ -108,8 +118,10 @@ const GameDetail = () => {
 
   const getStatusBadge = (status: GameStatus) => {
     switch (status) {
+      case "draft":
+        return <Badge variant="outline">Draft</Badge>;
       case "scheduled":
-        return <Badge variant="outline">Scheduled</Badge>;
+        return <Badge variant="default">Scheduled</Badge>;
       case "active":
         return <Badge variant="default">In Progress</Badge>;
       case "completed":
@@ -136,33 +148,18 @@ const GameDetail = () => {
     }
   };
 
-  if (isLoading) {
+  if (!game || isLoading) {
     return (
       <AdminLayout
-        title="Loading Game..."
+        title="Loading..."
         subtitle="Please wait"
         breadcrumbs={[
           { label: "Games", href: "/admin/games" },
-          { label: "Game Details", href: `/admin/games/${gameId}` },
+          { label: "Loading...", href: "#" },
         ]}
       >
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-        </div>
-      </AdminLayout>
-    );
-  }
-
-  if (!game) {
-    return (
-      <AdminLayout title="Game Not Found" subtitle="The requested game could not be found" breadcrumbs={[{ label: "Games", href: "/admin/games" }]}>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-4">Game Not Found</h2>
-          <p className="text-muted-foreground mb-6">The game you're looking for doesn't exist or has been deleted.</p>
-          <Button onClick={() => navigate("/admin/games")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Games
-          </Button>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin h-8 w-8 border-4 border-[#FF3D00] border-t-transparent rounded-full" />
         </div>
       </AdminLayout>
     );
@@ -179,109 +176,143 @@ const GameDetail = () => {
     >
       <div className="space-y-6">
         {/* Game Actions */}
-        <div className="flex flex-wrap gap-2 justify-between items-center">
+        <div className="flex flex-wrap gap-2 justify-between items-center bg-[#1a1a1a] p-4 rounded-lg">
           <div className="flex items-center gap-2">
             {getStatusBadge(game.status)}
-            <span className="text-sm text-muted-foreground">Created {formatTimestamp(game.createdAt)}</span>
+            <span className="text-sm text-gray-400">Created {formatTimestamp(game.createdAt)}</span>
           </div>
 
           <div className="flex gap-2">
-            {game.status === "scheduled" && (
-              <Button onClick={() => setShowStartDialog(true)}>
+            {/* Only show Start button for draft games or scheduled games that have reached their start time */}
+            {(game.status === "draft" || (game.status === "scheduled" && game.scheduledStartTime && game.scheduledStartTime.toDate() <= new Date())) && (
+              <Button onClick={() => setShowStartDialog(true)} className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
                 <Play className="h-4 w-4 mr-2" />
                 Start Game
               </Button>
             )}
 
             {game.status === "active" && (
-              <Button variant="destructive" onClick={() => setShowEndDialog(true)}>
+              <Button variant="destructive" onClick={() => setShowEndDialog(true)} className="bg-red-600 text-white hover:bg-red-700">
                 <StopCircle className="h-4 w-4 mr-2" />
                 End Game
               </Button>
             )}
 
-            <Button variant="outline" onClick={() => navigate(`/admin/games/${gameId}/edit`)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+            {/* Only allow editing for draft or scheduled games */}
+            {(game.status === "draft" || game.status === "scheduled") && (
+              <Button variant="outline" onClick={() => navigate(`/admin/games/${gameId}/edit`)} className="border-[#444] text-gray-400 hover:text-white hover:border-[#FF3D00]">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
 
-            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} className="bg-red-600 text-white hover:bg-red-700">
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>
           </div>
         </div>
 
+        {/* Show scheduling info for scheduled games */}
+        {game.status === "scheduled" && game.scheduledStartTime && (
+          <Card className="bg-[#1a1a1a] border-[#333]">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <Calendar className="h-5 w-5 text-[#FF3D00]" />
+                <div>
+                  <h4 className="text-sm font-medium text-white">Scheduled Start</h4>
+                  <p className="text-sm text-gray-400">{formatTimestamp(game.scheduledStartTime)}</p>
+                </div>
+                {game.expirationTime && (
+                  <>
+                    <Clock className="h-5 w-5 text-[#FFD700] ml-6" />
+                    <div>
+                      <h4 className="text-sm font-medium text-white">Expires</h4>
+                      <p className="text-sm text-gray-400">{formatTimestamp(game.expirationTime)}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Game Tabs */}
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full md:w-auto md:flex">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="questions">Questions ({questions.length})</TabsTrigger>
-            <TabsTrigger value="participants">Participants ({participants.length})</TabsTrigger>
+          <TabsList className="grid grid-cols-3 w-full md:w-auto md:flex bg-[#222] border-b border-[#333]">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-[#333] data-[state=active]:text-white">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="questions" className="data-[state=active]:bg-[#333] data-[state=active]:text-white">
+              Questions ({questions.length})
+            </TabsTrigger>
+            <TabsTrigger value="participants" className="data-[state=active]:bg-[#333] data-[state=active]:text-white">
+              Participants ({participants.length})
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
+              <Card className="bg-[#1a1a1a] border-[#333]">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <Settings className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium flex items-center text-white">
+                    <Settings className="h-4 w-4 mr-2 text-gray-400" />
                     Game Settings
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <dl className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Public Game</dt>
-                      <dd>{game.isPublic ? "Yes" : "No"}</dd>
+                      <dt className="text-gray-400">Public Game</dt>
+                      <dd className="text-white">{game.isPublic ? "Yes" : "No"}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Max Participants</dt>
-                      <dd>{game.maxParticipants}</dd>
+                      <dt className="text-gray-400">Max Participants</dt>
+                      <dd className="text-white">{game.maxParticipants}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Time Limit</dt>
-                      <dd>{game.timeLimit} seconds</dd>
+                      <dt className="text-gray-400">Time Limit</dt>
+                      <dd className="text-white">{game.timeLimit} seconds</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Hints Enabled</dt>
-                      <dd>{game.enableHints ? "Yes" : "No"}</dd>
+                      <dt className="text-gray-400">Hints Enabled</dt>
+                      <dd className="text-white">{game.enableHints ? "Yes" : "No"}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Bonus Questions</dt>
-                      <dd>{game.enableBonusQuestions ? "Yes" : "No"}</dd>
+                      <dt className="text-gray-400">Bonus Questions</dt>
+                      <dd className="text-white">{game.enableBonusQuestions ? "Yes" : "No"}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Post-Game Review</dt>
-                      <dd>{game.enablePostGameReview ? "Yes" : "No"}</dd>
+                      <dt className="text-gray-400">Post-Game Review</dt>
+                      <dd className="text-white">{game.enablePostGameReview ? "Yes" : "No"}</dd>
                     </div>
                   </dl>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-[#1a1a1a] border-[#333]">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <HelpCircle className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium flex items-center text-white">
+                    <HelpCircle className="h-4 w-4 mr-2 text-gray-400" />
                     Questions
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <dl className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Total Questions</dt>
-                      <dd>{questions.length}</dd>
+                      <dt className="text-gray-400">Total Questions</dt>
+                      <dd className="text-white">{questions.length}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Current Question</dt>
-                      <dd>
+                      <dt className="text-gray-400">Current Question</dt>
+                      <dd className="text-white">
                         {game.currentQuestionIndex + 1} of {questions.length}
                       </dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Difficulty Levels</dt>
-                      <dd>
+                      <dt className="text-gray-400">Difficulty Levels</dt>
+                      <dd className="text-white">
                         {game.allowedLevels && game.allowedLevels.length > 0
                           ? game.allowedLevels
                               .sort()
@@ -293,40 +324,40 @@ const GameDetail = () => {
                   </dl>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" className="w-full" onClick={() => setActiveTab("questions")}>
+                  <Button variant="outline" className="w-full border-[#444] text-gray-400 hover:text-white hover:border-[#FF3D00]" onClick={() => setActiveTab("questions")}>
                     <Eye className="h-4 w-4 mr-2" />
                     View Questions
                   </Button>
                 </CardFooter>
               </Card>
 
-              <Card>
+              <Card className="bg-[#1a1a1a] border-[#333]">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium flex items-center text-white">
+                    <Users className="h-4 w-4 mr-2 text-gray-400" />
                     Participants
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <dl className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Current Participants</dt>
-                      <dd>
+                      <dt className="text-gray-400">Current Participants</dt>
+                      <dd className="text-white">
                         {participants.length} of {game.maxParticipants}
                       </dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Active Players</dt>
-                      <dd>{participants.filter((p) => p.status === "active").length}</dd>
+                      <dt className="text-gray-400">Active Players</dt>
+                      <dd className="text-white">{participants.filter((p) => p.status === "active").length}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Completed</dt>
-                      <dd>{participants.filter((p) => p.status === "completed").length}</dd>
+                      <dt className="text-gray-400">Completed</dt>
+                      <dd className="text-white">{participants.filter((p) => p.status === "completed").length}</dd>
                     </div>
                   </dl>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" className="w-full" onClick={() => setActiveTab("participants")}>
+                  <Button variant="outline" className="w-full border-[#444] text-gray-400 hover:text-white hover:border-[#FF3D00]" onClick={() => setActiveTab("participants")}>
                     <Eye className="h-4 w-4 mr-2" />
                     View Participants
                   </Button>
@@ -334,43 +365,43 @@ const GameDetail = () => {
               </Card>
             </div>
 
-            <Card>
+            <Card className="bg-[#1a1a1a] border-[#333]">
               <CardHeader>
-                <CardTitle>Game Timeline</CardTitle>
-                <CardDescription>Important events and timestamps for this game</CardDescription>
+                <CardTitle className="text-white">Game Timeline</CardTitle>
+                <CardDescription className="text-gray-400">Important events and timestamps for this game</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
-                    <div className="mt-1 bg-primary/20 p-1 rounded-full">
-                      <Calendar className="h-5 w-5 text-primary" />
+                    <div className="mt-1 bg-[#333] p-1 rounded-full">
+                      <Calendar className="h-5 w-5 text-[#FF3D00]" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-medium">Created</h4>
-                      <p className="text-sm text-muted-foreground">{formatTimestamp(game.createdAt)}</p>
+                      <h4 className="text-sm font-medium text-white">Created</h4>
+                      <p className="text-sm text-gray-400">{formatTimestamp(game.createdAt)}</p>
                     </div>
                   </div>
 
                   {game.startedAt && (
                     <div className="flex items-start gap-4">
-                      <div className="mt-1 bg-green-500/20 p-1 rounded-full">
-                        <Play className="h-5 w-5 text-green-500" />
+                      <div className="mt-1 bg-[#333] p-1 rounded-full">
+                        <Play className="h-5 w-5 text-[#FFD700]" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-medium">Started</h4>
-                        <p className="text-sm text-muted-foreground">{formatTimestamp(game.startedAt)}</p>
+                        <h4 className="text-sm font-medium text-white">Started</h4>
+                        <p className="text-sm text-gray-400">{formatTimestamp(game.startedAt)}</p>
                       </div>
                     </div>
                   )}
 
                   {game.endedAt && (
                     <div className="flex items-start gap-4">
-                      <div className="mt-1 bg-red-500/20 p-1 rounded-full">
+                      <div className="mt-1 bg-[#333] p-1 rounded-full">
                         <StopCircle className="h-5 w-5 text-red-500" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-medium">Ended</h4>
-                        <p className="text-sm text-muted-foreground">{formatTimestamp(game.endedAt)}</p>
+                        <h4 className="text-sm font-medium text-white">Ended</h4>
+                        <p className="text-sm text-gray-400">{formatTimestamp(game.endedAt)}</p>
                       </div>
                     </div>
                   )}
@@ -382,20 +413,20 @@ const GameDetail = () => {
           {/* Questions Tab */}
           <TabsContent value="questions" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">Game Questions</h3>
-              <Button onClick={() => navigate(`/admin/games/${gameId}/edit`)}>
+              <h3 className="text-lg font-medium text-white">Game Questions</h3>
+              <Button onClick={() => navigate(`/admin/games/${gameId}/edit`)} className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Questions
               </Button>
             </div>
 
             {questions.length === 0 ? (
-              <Card>
+              <Card className="bg-[#1a1a1a] border-[#333]">
                 <CardContent className="text-center py-8">
-                  <HelpCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No Questions Added</h3>
-                  <p className="text-muted-foreground mb-4">This game doesn't have any questions yet.</p>
-                  <Button onClick={() => navigate(`/admin/games/${gameId}/edit`)}>
+                  <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-white mb-2">No Questions Added</h3>
+                  <p className="text-gray-400 mb-4">This game doesn't have any questions yet.</p>
+                  <Button onClick={() => navigate(`/admin/games/${gameId}/edit`)} className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Questions
                   </Button>
@@ -404,54 +435,42 @@ const GameDetail = () => {
             ) : (
               <div className="space-y-4">
                 {questions.map((question, index) => (
-                  <Card key={question.id}>
-                    <CardHeader className="pb-2">
+                  <Card key={question.id} className="bg-[#1a1a1a] border-[#333]">
+                    <CardContent className="p-4">
                       <div className="flex justify-between items-start">
-                        <CardTitle className="text-base">
-                          {index + 1}. {question.text}
-                        </CardTitle>
-                        <div className="flex gap-1">
-                          <Badge variant="outline">Level {question.level}</Badge>
-                          <Badge variant="secondary">{question.type}</Badge>
+                        <div className="flex-1">
+                          <h4 className="text-white font-medium mb-2">{question.text}</h4>
+                          <div className="flex gap-2">
+                            <Badge variant="outline" className="bg-[#222] text-gray-400 border-[#444]">
+                              Level {question.level}
+                            </Badge>
+                            <Badge variant="outline" className="bg-[#222] text-gray-400 border-[#444]">
+                              {question.type}
+                            </Badge>
+                            <Badge variant="outline" className="bg-[#222] text-gray-400 border-[#444]">
+                              {question.difficulty}
+                            </Badge>
+                          </div>
+                          {question.options && (
+                            <div className="mt-4 space-y-2">
+                              <p className="text-sm text-gray-400">Options:</p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {question.options.map((option, optionIndex) => (
+                                  <div
+                                    key={optionIndex}
+                                    className={`p-2 rounded-md border ${
+                                      optionIndex === question.correctAnswer ? "border-green-500 bg-green-500/10 text-green-500" : "border-[#444] bg-[#222] text-gray-400"
+                                    }`}
+                                  >
+                                    {option}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
+                        <span className="text-gray-400 ml-4">#{index + 1}</span>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      {question.type === "multiple-choice" && question.options && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {question.options.map((option, optIndex) => (
-                            <div key={optIndex} className={`p-2 rounded-md border ${question.correctAnswer === optIndex ? "border-green-500 bg-green-50 dark:bg-green-950/20" : ""}`}>
-                              {option}
-                              {question.correctAnswer === optIndex && <Badge className="ml-2 bg-green-500">Correct</Badge>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {question.type === "true-false" && question.options && (
-                        <div className="grid grid-cols-2 gap-2">
-                          {question.options.map((option, optIndex) => (
-                            <div key={optIndex} className={`p-2 rounded-md border ${question.correctAnswer === optIndex ? "border-green-500 bg-green-50 dark:bg-green-950/20" : ""}`}>
-                              {option}
-                              {question.correctAnswer === optIndex && <Badge className="ml-2 bg-green-500">Correct</Badge>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {question.type === "write-in" && (
-                        <div className="p-2 rounded-md border border-green-500 bg-green-50 dark:bg-green-950/20">
-                          <span className="font-medium">Correct Answer: </span>
-                          {question.correctAnswer as string}
-                        </div>
-                      )}
-
-                      {question.hint && (
-                        <div className="mt-4">
-                          <span className="text-sm font-medium">Hint: </span>
-                          <span className="text-sm text-muted-foreground">{question.hint}</span>
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -462,98 +481,97 @@ const GameDetail = () => {
           {/* Participants Tab */}
           <TabsContent value="participants" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">Game Participants</h3>
-              <Button onClick={() => navigate(`/admin/games/${gameId}/players`)}>
+              <h3 className="text-lg font-medium text-white">Game Participants</h3>
+              <Button onClick={() => navigate(`/admin/games/${gameId}/players`)} className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
                 <Users className="h-4 w-4 mr-2" />
                 Manage Participants
               </Button>
             </div>
 
             {participants.length === 0 ? (
-              <Card>
+              <Card className="bg-[#1a1a1a] border-[#333]">
                 <CardContent className="text-center py-8">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No Participants Yet</h3>
-                  <p className="text-muted-foreground">No one has joined this game yet.</p>
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-white mb-2">No Participants Yet</h3>
+                  <p className="text-gray-400">No one has joined this game yet.</p>
                 </CardContent>
               </Card>
             ) : (
-              <Card>
-                <CardContent className="p-0">
-                  <div className="rounded-md border">
-                    <div className="grid grid-cols-12 p-3 bg-muted/50 text-xs font-medium">
-                      <div className="col-span-4">Name</div>
-                      <div className="col-span-2">Status</div>
-                      <div className="col-span-2">Score</div>
-                      <div className="col-span-2">Correct Answers</div>
-                      <div className="col-span-2">Joined At</div>
-                    </div>
-                    <div className="divide-y">
-                      {participants.map((participant) => (
-                        <div key={participant.id} className="grid grid-cols-12 p-3 items-center text-sm">
-                          <div className="col-span-4 font-medium">{participant.name}</div>
-                          <div className="col-span-2">
-                            <Badge variant={participant.status === "active" ? "default" : "secondary"}>{participant.status}</Badge>
-                          </div>
-                          <div className="col-span-2">{participant.score}</div>
-                          <div className="col-span-2">{participant.correctAnswers}</div>
-                          <div className="col-span-2 text-muted-foreground">{formatTimestamp(participant.joinedAt)}</div>
+              <div className="space-y-4">
+                {participants.map((participant) => (
+                  <Card key={participant.id} className="bg-[#1a1a1a] border-[#333]">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="text-white font-medium">{participant.name}</h4>
+                          <p className="text-gray-400 text-sm">Joined {formatTimestamp(participant.joinedAt)}</p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                        <Badge variant="outline" className="bg-[#222] text-gray-400 border-[#444]">
+                          {participant.status}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Alert Dialogs */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent className="bg-[#1a1a1a] border-[#333]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">Are you sure you want to delete this game?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-400">
+                This action cannot be undone. This will permanently delete the game and all associated data including questions and participant records.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-[#222] text-gray-400 border-[#444] hover:bg-[#333] hover:text-white">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteGame} className="bg-red-600 text-white hover:bg-red-700">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showStartDialog} onOpenChange={setShowStartDialog}>
+          <AlertDialogContent className="bg-[#1a1a1a] border-[#333]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">Start this game?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-400">
+                {game.scheduledStartTime
+                  ? "This scheduled game is ready to start. Players will be able to join and play once you start the game."
+                  : "This will make the game active and allow participants to join and start playing. Make sure you have added all the questions you want to include."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-[#222] text-gray-400 border-[#444] hover:bg-[#333] hover:text-white">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleStartGame} className="bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
+                Start Game
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
+          <AlertDialogContent className="bg-[#1a1a1a] border-[#333]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">End this game?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-400">
+                This will end the game for all participants. They will no longer be able to submit answers, and final scores will be calculated.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-[#222] text-gray-400 border-[#444] hover:bg-[#333] hover:text-white">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleEndGame} className="bg-red-600 text-white hover:bg-red-700">
+                End Game
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this game?</AlertDialogTitle>
-            <AlertDialogDescription>This action cannot be undone. This will permanently delete the game and all associated data including questions and participant records.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteGame} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Start Game Confirmation Dialog */}
-      <AlertDialog open={showStartDialog} onOpenChange={setShowStartDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Start this game?</AlertDialogTitle>
-            <AlertDialogDescription>This will make the game active and allow participants to join and start playing. Make sure you have added all the questions you want to include.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStartGame}>Start Game</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* End Game Confirmation Dialog */}
-      <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>End this game?</AlertDialogTitle>
-            <AlertDialogDescription>This will end the game for all participants. They will no longer be able to submit answers, and final scores will be calculated.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleEndGame} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              End Game
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AdminLayout>
   );
 };

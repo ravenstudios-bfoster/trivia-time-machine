@@ -483,8 +483,8 @@ const QuestionForm = () => {
                   <TabsContent value="answers" className="space-y-6">
                     {(questionType === "multiple-choice" || questionType === "true-false") && (
                       <div className="space-y-4">
-                        <div className="bg-card rounded-lg border p-4">
-                          <h3 className="text-lg font-semibold mb-4">Answer Options</h3>
+                        <div className="bg-[#222] rounded-lg border border-[#333] p-4">
+                          <h3 className="text-lg font-semibold mb-4 text-white">Answer Options</h3>
                           {form.watch("options")?.map((_, index) => (
                             <div key={index} className="flex gap-2 items-start mb-2">
                               <FormField
@@ -493,19 +493,26 @@ const QuestionForm = () => {
                                 render={({ field }) => (
                                   <FormItem className="flex-1">
                                     <FormControl>
-                                      <Input placeholder={`Option ${index + 1}`} {...field} className="bg-background" disabled={questionType === "true-false"} />
+                                      <Input placeholder={`Option ${index + 1}`} {...field} className="bg-[#111] border-[#333] text-white" disabled={questionType === "true-false"} />
                                     </FormControl>
-                                    <FormMessage />
+                                    <FormMessage className="text-[#FF3D00]" />
                                   </FormItem>
                                 )}
                               />
-                              <Button type="button" variant="outline" size="icon" onClick={() => removeOption(index)} disabled={questionType === "true-false" || form.watch("options")?.length <= 2}>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => removeOption(index)}
+                                disabled={questionType === "true-false" || form.watch("options")?.length <= 2}
+                                className="border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]"
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           ))}
                           {questionType === "multiple-choice" && (
-                            <Button type="button" variant="outline" onClick={addOption} className="mt-2">
+                            <Button type="button" variant="outline" onClick={addOption} className="mt-2 border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]">
                               <Plus className="h-4 w-4 mr-2" />
                               Add Option
                             </Button>
@@ -516,24 +523,24 @@ const QuestionForm = () => {
                           control={form.control}
                           name="correctAnswer"
                           render={({ field }) => (
-                            <FormItem className="bg-card rounded-lg border p-4">
-                              <FormLabel>Correct Answer</FormLabel>
+                            <FormItem className="bg-[#222] rounded-lg border border-[#333] p-4">
+                              <FormLabel className="text-white">Correct Answer</FormLabel>
                               <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                                 <FormControl>
-                                  <SelectTrigger className="bg-background">
+                                  <SelectTrigger className="bg-[#111] border-[#333] text-white">
                                     <SelectValue placeholder="Select correct answer" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="bg-[#222] border-[#333]">
                                   {form.watch("options")?.map((option, index) => (
-                                    <SelectItem key={index} value={index.toString()}>
+                                    <SelectItem key={index} value={index.toString()} className="text-white hover:bg-[#333]">
                                       {option || `Option ${index + 1}`}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <FormDescription>Select which option is the correct answer</FormDescription>
-                              <FormMessage />
+                              <FormDescription className="text-[#666]">Select which option is the correct answer</FormDescription>
+                              <FormMessage className="text-[#FF3D00]" />
                             </FormItem>
                           )}
                         />
@@ -545,13 +552,13 @@ const QuestionForm = () => {
                         control={form.control}
                         name="correctAnswer"
                         render={({ field }) => (
-                          <FormItem className="bg-card rounded-lg border p-4">
-                            <FormLabel>Correct Answer</FormLabel>
+                          <FormItem className="bg-[#222] rounded-lg border border-[#333] p-4">
+                            <FormLabel className="text-white">Correct Answer</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter the correct answer" {...field} className="bg-background" />
+                              <Input placeholder="Enter the correct answer" {...field} className="bg-[#111] border-[#333] text-white" />
                             </FormControl>
-                            <FormDescription>Be specific but allow for variations in spelling and formatting</FormDescription>
-                            <FormMessage />
+                            <FormDescription className="text-[#666]">Be specific but allow for variations in spelling and formatting</FormDescription>
+                            <FormMessage className="text-[#FF3D00]" />
                           </FormItem>
                         )}
                       />
@@ -564,18 +571,18 @@ const QuestionForm = () => {
                         control={form.control}
                         name="imageUrl"
                         render={({ field }) => (
-                          <FormItem className="bg-card rounded-lg border p-4">
-                            <FormLabel>Image URL</FormLabel>
+                          <FormItem className="bg-[#222] rounded-lg border border-[#333] p-4">
+                            <FormLabel className="text-white">Image URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter image URL" {...field} className="bg-background" />
+                              <Input placeholder="Enter image URL" {...field} className="bg-[#111] border-[#333] text-white" />
                             </FormControl>
-                            <FormDescription>Add an image to make your question more engaging</FormDescription>
+                            <FormDescription className="text-[#666]">Add an image to make your question more engaging</FormDescription>
                             {field.value && (
                               <div className="mt-2">
-                                <img src={field.value} alt="Question preview" className="max-w-sm rounded-lg border" onError={() => setPreviewImage(null)} />
+                                <img src={field.value} alt="Question preview" className="max-w-sm rounded-lg border border-[#333]" onError={() => setPreviewImage(null)} />
                               </div>
                             )}
-                            <FormMessage />
+                            <FormMessage className="text-[#FF3D00]" />
                           </FormItem>
                         )}
                       />
@@ -584,13 +591,13 @@ const QuestionForm = () => {
                         control={form.control}
                         name="videoUrl"
                         render={({ field }) => (
-                          <FormItem className="bg-card rounded-lg border p-4">
-                            <FormLabel>Video URL</FormLabel>
+                          <FormItem className="bg-[#222] rounded-lg border border-[#333] p-4">
+                            <FormLabel className="text-white">Video URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter video URL" {...field} className="bg-background" />
+                              <Input placeholder="Enter video URL" {...field} className="bg-[#111] border-[#333] text-white" />
                             </FormControl>
-                            <FormDescription>Add a video clip to enhance the question</FormDescription>
-                            <FormMessage />
+                            <FormDescription className="text-[#666]">Add a video clip to enhance the question</FormDescription>
+                            <FormMessage className="text-[#FF3D00]" />
                           </FormItem>
                         )}
                       />
@@ -603,13 +610,13 @@ const QuestionForm = () => {
                         control={form.control}
                         name="hint"
                         render={({ field }) => (
-                          <FormItem className="bg-card rounded-lg border p-4">
-                            <FormLabel>Hint</FormLabel>
+                          <FormItem className="bg-[#222] rounded-lg border border-[#333] p-4">
+                            <FormLabel className="text-white">Hint</FormLabel>
                             <FormControl>
-                              <Textarea placeholder="Enter a helpful hint" {...field} className="bg-background min-h-[100px]" />
+                              <Textarea placeholder="Enter a helpful hint" {...field} className="bg-[#111] border-[#333] text-white min-h-[100px]" />
                             </FormControl>
-                            <FormDescription>A clue that can help players answer the question</FormDescription>
-                            <FormMessage />
+                            <FormDescription className="text-[#666]">A clue that can help players answer the question</FormDescription>
+                            <FormMessage className="text-[#FF3D00]" />
                           </FormItem>
                         )}
                       />
@@ -618,13 +625,13 @@ const QuestionForm = () => {
                         control={form.control}
                         name="hintPenalty"
                         render={({ field }) => (
-                          <FormItem className="bg-card rounded-lg border p-4">
-                            <FormLabel>Hint Penalty</FormLabel>
+                          <FormItem className="bg-[#222] rounded-lg border border-[#333] p-4">
+                            <FormLabel className="text-white">Hint Penalty</FormLabel>
                             <FormControl>
-                              <Input type="number" min="0" {...field} className="bg-background" onChange={(e) => field.onChange(parseInt(e.target.value))} />
+                              <Input type="number" min="0" {...field} className="bg-[#111] border-[#333] text-white" onChange={(e) => field.onChange(parseInt(e.target.value))} />
                             </FormControl>
-                            <FormDescription>Points deducted when a player uses the hint</FormDescription>
-                            <FormMessage />
+                            <FormDescription className="text-[#666]">Points deducted when a player uses the hint</FormDescription>
+                            <FormMessage className="text-[#FF3D00]" />
                           </FormItem>
                         )}
                       />
@@ -633,13 +640,13 @@ const QuestionForm = () => {
                         control={form.control}
                         name="explanation"
                         render={({ field }) => (
-                          <FormItem className="bg-card rounded-lg border p-4">
-                            <FormLabel>Explanation</FormLabel>
+                          <FormItem className="bg-[#222] rounded-lg border border-[#333] p-4">
+                            <FormLabel className="text-white">Explanation</FormLabel>
                             <FormControl>
-                              <Textarea placeholder="Enter explanation" {...field} className="bg-background min-h-[100px]" />
+                              <Textarea placeholder="Enter explanation" {...field} className="bg-[#111] border-[#333] text-white min-h-[100px]" />
                             </FormControl>
-                            <FormDescription>Detailed explanation of the correct answer</FormDescription>
-                            <FormMessage />
+                            <FormDescription className="text-[#666]">Detailed explanation of the correct answer</FormDescription>
+                            <FormMessage className="text-[#FF3D00]" />
                           </FormItem>
                         )}
                       />

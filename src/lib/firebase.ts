@@ -89,7 +89,7 @@ export const createGame = async (gameData: Omit<Game, "id" | "createdAt" | "part
     adminId,
     participantCount: 0,
     createdAt: serverTimestamp(),
-    status: gameData.status || "scheduled",
+    status: gameData.scheduledStartTime ? "scheduled" : "draft",
     scheduledStartTime: gameData.scheduledStartTime || null,
     expirationTime: gameData.expirationTime || null,
   });
@@ -176,6 +176,12 @@ export const getGameById = async (gameId: string): Promise<Game | null> => {
 
 export const updateGame = async (gameId: string, gameData: Partial<Game>): Promise<void> => {
   const gameRef = doc(db, "games", gameId);
+
+  // If updating schedule times, update status accordingly
+  if (gameData.scheduledStartTime !== undefined) {
+    gameData.status = gameData.scheduledStartTime ? "scheduled" : "draft";
+  }
+
   return await updateDoc(gameRef, {
     ...gameData,
     lastStatusUpdate: serverTimestamp(),
@@ -209,6 +215,18 @@ export const deleteGame = async (gameId: string): Promise<void> => {
 
 export const startGame = async (gameId: string): Promise<void> => {
   const gameRef = doc(db, "games", gameId);
+  const gameDoc = await getDoc(gameRef);
+  const game = gameDoc.data() as Game;
+
+  // Cannot start a scheduled game before its start time
+  if (game.scheduledStartTime) {
+    const startTime = game.scheduledStartTime.toDate();
+    const now = new Date();
+    if (startTime > now) {
+      throw new Error("Cannot start a scheduled game before its start time");
+    }
+  }
+
   return await updateDoc(gameRef, {
     status: "active",
     startedAt: serverTimestamp(),
