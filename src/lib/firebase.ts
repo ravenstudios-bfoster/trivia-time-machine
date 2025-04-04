@@ -37,6 +37,7 @@ import {
   UserRole,
   GameAnalytics,
   QuestionStat,
+  AccessCode,
 } from "@/types";
 
 // Your web app's Firebase configuration
@@ -61,6 +62,7 @@ const storage = getStorage(app);
 export const gamesCollection = collection(db, "games");
 export const questionsCollection = collection(db, "questions");
 export const adminUsersCollection = collection(db, "adminUsers");
+export const accessCodesCollection = collection(db, "accessCodes");
 
 // Authentication functions
 export const loginWithEmail = (email: string, password: string) => {
@@ -587,6 +589,69 @@ export const deleteAdminUser = async (userId: string): Promise<void> => {
   return await deleteDoc(userRef);
 };
 
+// Access Code Functions
+export const createAccessCode = async (data: Omit<AccessCode, "id" | "createdAt">): Promise<AccessCode> => {
+  const accessCodesRef = collection(db, "accessCodes");
+  const newCodeRef = doc(accessCodesRef);
+
+  const accessCode: AccessCode = {
+    ...data,
+    id: newCodeRef.id,
+    createdAt: new Date(),
+    startDate: new Date(data.startDate),
+    expirationDate: new Date(data.expirationDate),
+  };
+
+  await setDoc(newCodeRef, {
+    ...accessCode,
+    createdAt: Timestamp.fromDate(accessCode.createdAt),
+    startDate: Timestamp.fromDate(accessCode.startDate),
+    expirationDate: Timestamp.fromDate(accessCode.expirationDate),
+  });
+
+  return accessCode;
+};
+
+export const getAccessCodes = async (): Promise<AccessCode[]> => {
+  const accessCodesRef = collection(db, "accessCodes");
+  const q = query(accessCodesRef, orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      ...data,
+      id: doc.id,
+      createdAt: data.createdAt.toDate(),
+      startDate: data.startDate.toDate(),
+      expirationDate: data.expirationDate.toDate(),
+    } as AccessCode;
+  });
+};
+
+export const updateAccessCode = async (id: string, data: Partial<AccessCode>): Promise<void> => {
+  const accessCodeRef = doc(db, "accessCodes", id);
+  const updateData = { ...data };
+
+  if (data.startDate) {
+    updateData.startDate = Timestamp.fromDate(new Date(data.startDate));
+  }
+  if (data.expirationDate) {
+    updateData.expirationDate = Timestamp.fromDate(new Date(data.expirationDate));
+  }
+
+  await updateDoc(accessCodeRef, updateData);
+};
+
+export const validateAccessCode = async (code: string): Promise<boolean> => {
+  const accessCodesRef = collection(db, "accessCodes");
+  const now = new Date();
+  const q = query(accessCodesRef, where("code", "==", code), where("isActive", "==", true), where("startDate", "<=", Timestamp.fromDate(now)), where("expirationDate", ">=", Timestamp.fromDate(now)));
+
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
+};
+
 // Storage functions
 export const uploadFile = async (file: File, path: string): Promise<string> => {
   const storageRef = ref(storage, path);
@@ -648,6 +713,58 @@ export const generateGameAnalytics = async (gameId: string): Promise<GameAnalyti
   await setDoc(doc(db, "gameAnalytics", gameId), analytics);
 
   return analytics;
+};
+
+export interface User {
+  id: string;
+  displayName: string;
+  email: string;
+  role: "participant";
+  createdAt: Date;
+  lastLogin: Date;
+  gamesParticipated: number;
+}
+
+export const createOrUpdateUser = async (userData: { displayName: string; email: string }): Promise<User> => {
+  const usersRef = collection(db, "users");
+  // Use the email as the document ID
+  const userId = userData.email;
+  const userDocRef = doc(usersRef, userId);
+
+  try {
+    const userDoc = await getDoc(userDocRef);
+    const now = Timestamp.now();
+
+    if (!userDoc.exists()) {
+      // Create new user
+      const newUser: User = {
+        id: userId,
+        displayName: userData.displayName,
+        email: userData.email,
+        role: "participant",
+        createdAt: now.toDate(),
+        lastLogin: now.toDate(),
+        gamesParticipated: 0,
+      };
+
+      await setDoc(userDocRef, newUser);
+      return newUser;
+    } else {
+      // Update existing user's last login
+      await updateDoc(userDocRef, {
+        lastLogin: now,
+        displayName: userData.displayName, // Update display name in case it changed
+      });
+
+      return {
+        ...(userDoc.data() as User),
+        lastLogin: now.toDate(),
+      };
+    }
+  } catch (error) {
+    console.error("Error creating/updating user:", error);
+    throw error;
+  }
 };
 
 export { auth, db, storage };

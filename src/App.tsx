@@ -4,13 +4,25 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
+import { useGame } from "@/context/GameContext";
+import Auth from "./pages/Auth";
 import LevelSelect from "./pages/LevelSelect";
 import Game from "./pages/Game";
 import Results from "./pages/Results";
 import NotFound from "./pages/NotFound";
 import { GameProvider } from "./context/GameContext";
 import { AuthProvider } from "./context/AuthContext";
+
+// Protected Route component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { state } = useGame();
+
+  if (!state.player?.id) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 // Lazy load admin routes
 const AdminLogin = lazy(() => import("./pages/admin/Login"));
@@ -44,10 +56,31 @@ const App = () => (
           <BrowserRouter>
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/levels" element={<LevelSelect />} />
-                <Route path="/game" element={<Game />} />
-                <Route path="/results" element={<Results />} />
+                <Route path="/" element={<Auth />} />
+                <Route
+                  path="/levels"
+                  element={
+                    <ProtectedRoute>
+                      <LevelSelect />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/game"
+                  element={
+                    <ProtectedRoute>
+                      <Game />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/results"
+                  element={
+                    <ProtectedRoute>
+                      <Results />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Admin Routes */}
                 <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

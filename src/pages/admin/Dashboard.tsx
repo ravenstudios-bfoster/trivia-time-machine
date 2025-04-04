@@ -4,20 +4,30 @@ import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getGames, getQuestions } from "@/lib/firebase";
-import { Game, Question, GameStatus } from "@/types";
-import { Gamepad2, HelpCircle, Clock, Users, Trophy, CalendarDays, ShieldAlert, Database, Plus } from "lucide-react";
+import { getGames, getQuestions, getAccessCodes, createAccessCode } from "@/lib/firebase";
+import { Game, Question, GameStatus, AccessCode } from "@/types";
+import { Gamepad2, HelpCircle, Clock, Users, Trophy, CalendarDays, ShieldAlert, Database, Plus, Key } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const AdminDashboard = () => {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const [games, setGames] = useState<Game[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [accessCodes, setAccessCodes] = useState<AccessCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newCode, setNewCode] = useState({
+    code: "",
+    startDate: "",
+    expirationDate: "",
+    description: "",
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,11 +35,12 @@ const AdminDashboard = () => {
         setIsLoading(true);
         setError(null);
 
-        // Fetch games and questions in parallel
-        const [gamesData, questionsData] = await Promise.all([getGames(), getQuestions()]);
+        // Fetch games, questions, and access codes in parallel
+        const [gamesData, questionsData, accessCodesData] = await Promise.all([getGames(), getQuestions(), getAccessCodes()]);
 
         setGames(gamesData);
         setQuestions(questionsData);
+        setAccessCodes(accessCodesData);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         setError("Failed to load dashboard data. Please try again later.");
@@ -41,6 +52,41 @@ const AdminDashboard = () => {
 
     fetchData();
   }, []);
+
+  const handleCreateCode = async () => {
+    try {
+      if (!newCode.code || !newCode.startDate || !newCode.expirationDate) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
+
+      await createAccessCode({
+        code: newCode.code,
+        startDate: new Date(newCode.startDate),
+        expirationDate: new Date(newCode.expirationDate),
+        description: newCode.description,
+        isActive: true,
+        createdBy: user?.email || "unknown",
+      });
+
+      // Refresh access codes
+      const updatedCodes = await getAccessCodes();
+      setAccessCodes(updatedCodes);
+
+      // Reset form
+      setNewCode({
+        code: "",
+        startDate: "",
+        expirationDate: "",
+        description: "",
+      });
+
+      toast.success("Access code created successfully!");
+    } catch (error) {
+      console.error("Error creating access code:", error);
+      toast.error("Failed to create access code");
+    }
+  };
 
   // Calculate stats
   const activeGames = games.filter((game) => game.status === "active").length;
@@ -259,6 +305,112 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Access Codes Section */}
+      <Card className="mt-4 bg-[#111] border-[#333]">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-white">Access Codes</CardTitle>
+            <CardDescription className="text-[#666]">Manage game access codes</CardDescription>
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Code
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-[#111] border-[#333] text-white">
+              <DialogHeader>
+                <DialogTitle>Create New Access Code</DialogTitle>
+                <DialogDescription className="text-[#666]">Create a new access code for the trivia game. This code will be required for players to join.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="code">Access Code</Label>
+                  <Input id="code" value={newCode.code} onChange={(e) => setNewCode({ ...newCode, code: e.target.value })} placeholder="e.g., OUTATIME88" className="bg-[#222] border-[#444] text-white" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="datetime-local"
+                    value={newCode.startDate}
+                    onChange={(e) => setNewCode({ ...newCode, startDate: e.target.value })}
+                    className="bg-[#222] border-[#444] text-white"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="expirationDate">Expiration Date</Label>
+                  <Input
+                    id="expirationDate"
+                    type="datetime-local"
+                    value={newCode.expirationDate}
+                    onChange={(e) => setNewCode({ ...newCode, expirationDate: e.target.value })}
+                    className="bg-[#222] border-[#444] text-white"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="description">Description (Optional)</Label>
+                  <Input
+                    id="description"
+                    value={newCode.description}
+                    onChange={(e) => setNewCode({ ...newCode, description: e.target.value })}
+                    placeholder="e.g., Tom's Birthday Party Code"
+                    className="bg-[#222] border-[#444] text-white"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleCreateCode} className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
+                  Create Code
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border border-[#333] bg-[#111]">
+            <div className="bg-[#222] p-3 grid grid-cols-12 text-xs font-medium text-[#666]">
+              <div className="col-span-2">Code</div>
+              <div className="col-span-3">Description</div>
+              <div className="col-span-2">Start Date</div>
+              <div className="col-span-2">Expiration</div>
+              <div className="col-span-2">Status</div>
+              <div className="col-span-1">Actions</div>
+            </div>
+            <div className="divide-y divide-[#333]">
+              {accessCodes.map((code) => (
+                <div key={code.id} className="p-3 grid grid-cols-12 items-center text-sm">
+                  <div className="col-span-2 font-mono text-white">{code.code}</div>
+                  <div className="col-span-3 text-[#666]">{code.description || "-"}</div>
+                  <div className="col-span-2 text-[#666]">{format(code.startDate, "MMM d, yyyy")}</div>
+                  <div className="col-span-2 text-[#666]">{format(code.expirationDate, "MMM d, yyyy")}</div>
+                  <div className="col-span-2">
+                    <Badge variant={code.isActive ? "default" : "secondary"} className={code.isActive ? "bg-green-500/20 text-green-500" : "bg-gray-500/20 text-gray-500"}>
+                      {code.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <div className="col-span-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]"
+                      onClick={() => {
+                        // TODO: Add edit functionality
+                        toast.info("Edit functionality coming soon!");
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {accessCodes.length === 0 && <div className="p-8 text-center text-[#666]">No access codes found. Create one to get started.</div>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </AdminLayout>
   );
 };

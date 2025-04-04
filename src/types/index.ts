@@ -44,29 +44,18 @@ export type PlayerAnswer = {
 };
 
 export type GameSession = {
-  playerId: string;
-  playerName: string;
+  id: string;
   startTime: Date;
   endTime?: Date;
+  score: number;
   selectedLevels: Level[];
-  currentLevel?: Level;
-  currentQuestionIndex: number;
-  answers: PlayerAnswer[];
-  totalScore: number;
-  isCompleted: boolean;
 };
 
 export type Player = {
-  id: string;
+  id?: string;
   name: string;
-  email?: string;
-  profileImageUrl?: string;
-  sessions: GameSession[];
-  highScore?: number;
-  gameId?: string;
-  status?: PlayerStatus;
-  joinTime?: Timestamp;
-  updatedAt?: Timestamp;
+  email: string;
+  sessions?: GameSession[];
 };
 
 export type GameState = {
@@ -213,3 +202,14 @@ export type ParticipantFilter = {
   minScore?: number;
   maxScore?: number;
 };
+
+export interface AccessCode {
+  id: string;
+  code: string;
+  startDate: Date;
+  expirationDate: Date;
+  createdAt: Date;
+  createdBy: string;
+  isActive: boolean;
+  description?: string;
+}

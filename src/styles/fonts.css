@@ -1,0 +1,9 @@
+@font-face {
+  font-family: "LED";
+  src: url("/fonts/digital-7.ttf") format("truetype");
+  font-display: swap;
+}
+
+.font-led {
+  font-family: "LED", monospace;
+}
