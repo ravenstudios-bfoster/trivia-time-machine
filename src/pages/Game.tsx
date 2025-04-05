@@ -125,7 +125,17 @@ const Game = () => {
               </div>
 
               <div className="flex items-center gap-3 mt-3 md:mt-0">
-                <TimeCircuit label="Current Date" value="10-26-1985" color="blue" />
+                <TimeCircuit
+                  label="Current Date"
+                  value={new Date()
+                    .toLocaleDateString("en-US", {
+                      month: "2-digit",
+                      day: "2-digit",
+                      year: "numeric",
+                    })
+                    .replace(/\//g, "-")}
+                  color="blue"
+                />
               </div>
             </div>
 

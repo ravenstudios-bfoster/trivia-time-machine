@@ -27,6 +27,14 @@ const LevelSelect = () => {
     }
   }, [player, navigate]);
 
+  // Get available levels based on player's highest level achieved
+  const getAvailableLevels = () => {
+    if (!player) return [];
+
+    const highestLevel = player.highestLevelAchieved || 1;
+    return [1, 2, 3].filter((level) => level >= highestLevel);
+  };
+
   const toggleLevel = (level: Level) => {
     setError("");
 
@@ -36,13 +44,20 @@ const LevelSelect = () => {
       return;
     }
 
+    // Check if the level is available
+    const availableLevels = getAvailableLevels();
+    if (!availableLevels.includes(level)) {
+      setError("You must complete lower levels before attempting this level.");
+      return;
+    }
+
     // Otherwise, select the new level (replacing any existing selection)
     setSelectedLevels([level]);
   };
 
   const handleStartGame = async () => {
     if (selectedLevels.length === 0) {
-      setError("Please select at least one level to play");
+      setError("Please select a level to play");
       return;
     }
 
@@ -56,12 +71,11 @@ const LevelSelect = () => {
     setError("");
 
     try {
-      // Sort levels in ascending order
-      const sortedLevels = [...selectedLevels].sort((a, b) => a - b);
+      const selectedLevel = selectedLevels[0];
 
       // Find or create a suitable game
       const game = await getOrCreateGame({
-        selectedLevels: sortedLevels,
+        selectedLevels: [selectedLevel],
         playerName: player.name,
         playerId: player.id,
         preferredGameSize: 20,
@@ -77,7 +91,7 @@ const LevelSelect = () => {
       dispatch({
         type: "START_SESSION",
         payload: {
-          selectedLevels: sortedLevels,
+          selectedLevels: [selectedLevel],
           gameId: game.id,
         },
       });
@@ -91,6 +105,8 @@ const LevelSelect = () => {
       setIsLoading(false);
     }
   };
+
+  const availableLevels = getAvailableLevels();
 
   return (
     <Layout>
@@ -111,9 +127,10 @@ const LevelSelect = () => {
           </div>
 
           <div className="grid gap-6 mb-10">
-            {[1, 2, 3].map((level) => (
-              <LevelCard key={level} level={level as Level} selected={selectedLevels.includes(level as Level)} onToggle={() => toggleLevel(level as Level)} />
-            ))}
+            {[1, 2, 3].map((level) => {
+              const isAvailable = availableLevels.includes(level as Level);
+              return <LevelCard key={level} level={level as Level} selected={selectedLevels.includes(level as Level)} onToggle={() => toggleLevel(level as Level)} isAvailable={isAvailable} />;
+            })}
           </div>
 
           <div className="text-center">
@@ -131,9 +148,10 @@ interface LevelCardProps {
   level: Level;
   selected: boolean;
   onToggle: () => void;
+  isAvailable: boolean;
 }
 
-const LevelCard = ({ level, selected, onToggle }: LevelCardProps) => {
+const LevelCard = ({ level, selected, onToggle, isAvailable }: LevelCardProps) => {
   const levelThemes = {
     1: {
       title: "Casual Time Traveler",
@@ -165,8 +183,10 @@ const LevelCard = ({ level, selected, onToggle }: LevelCardProps) => {
 
   return (
     <Card
-      className={`bttf-card cursor-pointer transition-all duration-300 ${selected ? `${theme.border} ${theme.bg} animate-pulse` : "border-primary/20"} hover:border-primary relative`}
-      onClick={onToggle}
+      className={`bttf-card transition-all duration-300 ${
+        selected ? `${theme.border} ${theme.bg} animate-pulse` : isAvailable ? "border-primary/20 hover:border-primary cursor-pointer" : "border-gray-800/50 opacity-50 cursor-not-allowed"
+      }`}
+      onClick={isAvailable ? onToggle : undefined}
       style={{
         ...(selected && {
           boxShadow: `0 0 10px ${theme.glow}, 0 0 20px ${theme.glow}, inset 0 0 5px ${theme.glow}`,
@@ -177,8 +197,11 @@ const LevelCard = ({ level, selected, onToggle }: LevelCardProps) => {
         <div className="mt-0.5">
           <Checkbox
             checked={selected}
-            onCheckedChange={() => onToggle()}
-            className={`h-5 w-5 border-2 ${selected ? `${theme.border} ${theme.bg} data-[state=checked]:bg-current` : "border-primary/40"} transition-colors duration-200`}
+            onCheckedChange={isAvailable ? () => onToggle() : undefined}
+            className={`h-5 w-5 border-2 ${
+              selected ? `${theme.border} ${theme.bg} data-[state=checked]:bg-current` : isAvailable ? "border-primary/40" : "border-gray-800/50"
+            } transition-colors duration-200`}
+            disabled={!isAvailable}
           />
         </div>
 
@@ -191,10 +214,10 @@ const LevelCard = ({ level, selected, onToggle }: LevelCardProps) => {
           <p className="text-sm text-muted-foreground mb-4">{getLevelDescription(level)}</p>
 
           <div className="flex flex-wrap gap-3">
-            <div className={`px-3 py-1.5 backdrop-blur rounded-md border ${selected ? theme.border : "border-primary/20"} transition-colors duration-200`}>
+            <div className={`px-3 py-1.5 backdrop-blur rounded-md border ${selected ? theme.border : isAvailable ? "border-primary/20" : "border-gray-800/50"} transition-colors duration-200`}>
               <span className="text-primary font-mono text-xs">{level * 100} POINTS/QUESTION</span>
             </div>
-            <div className={`px-3 py-1.5 backdrop-blur rounded-md border ${selected ? theme.border : "border-primary/20"} transition-colors duration-200`}>
+            <div className={`px-3 py-1.5 backdrop-blur rounded-md border ${selected ? theme.border : isAvailable ? "border-primary/20" : "border-gray-800/50"} transition-colors duration-200`}>
               <span className="text-primary font-mono text-xs">{30 + (level - 1) * 15}s TIME LIMIT</span>
             </div>
           </div>

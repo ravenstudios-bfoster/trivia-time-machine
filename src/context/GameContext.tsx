@@ -71,7 +71,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
   let nextLevel: Level;
   let nextLevelFirstQuestion: Question | null;
 
-  let newState: GameState;
+  let newState = state;
 
   switch (action.type) {
     case "SET_PLAYER":
@@ -193,18 +193,37 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       };
       break;
 
-    case "COMPLETE_SESSION":
-      if (!state.currentSession) return state;
+    case "COMPLETE_SESSION": {
+      if (!state.currentSession || !state.player) return state;
+
+      // Update player's highest level achieved
+      const currentLevel = state.currentSession.currentLevel;
+      const newHighestLevel = Math.max(state.player.highestLevelAchieved || 1, currentLevel) as Level;
+
+      const newSession: GameSession = {
+        id: state.currentSession.gameId,
+        startTime: new Date(),
+        endTime: new Date(),
+        score: state.currentSession.score,
+        selectedLevels: state.currentSession.selectedLevels,
+        answers: state.currentSession.answers,
+        completedAt: new Date(),
+      };
+
       newState = {
         ...state,
         currentSession: {
           ...state.currentSession,
-          currentQuestionIndex: state.questions.length,
           isCompleted: true,
         },
-        currentQuestion: null,
+        player: {
+          ...state.player,
+          highestLevelAchieved: newHighestLevel,
+          sessions: [...state.player.sessions, newSession],
+        },
       };
       break;
+    }
 
     case "LOGOUT":
       newState = initialState;

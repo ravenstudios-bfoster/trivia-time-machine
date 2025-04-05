@@ -195,7 +195,7 @@ const Results = () => {
           <div className="flex justify-center space-x-4">
             <GameButton onClick={handlePlayAgain}>Play Again</GameButton>
 
-            <GameButton onClick={() => navigate("/")} variant="outline">
+            <GameButton onClick={() => navigate("/levels")} variant="outline">
               Home
               <ArrowRight className="w-4 h-4 ml-2" />
             </GameButton>

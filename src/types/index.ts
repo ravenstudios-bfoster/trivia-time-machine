@@ -49,14 +49,22 @@ export type GameSession = {
   endTime?: Date;
   score: number;
   selectedLevels: Level[];
+  answers: Array<{
+    questionId: string;
+    pointsEarned: number;
+  }>;
+  completedAt?: Date;
 };
 
-export type Player = {
-  id?: string;
+export interface Player {
+  id: string;
   name: string;
-  email: string;
-  sessions?: GameSession[];
-};
+  email?: string;
+  sessions: GameSession[];
+  highestLevelAchieved: Level;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
 
 export type GameState = {
   player: Player | null;
