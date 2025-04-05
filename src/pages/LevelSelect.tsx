@@ -8,12 +8,15 @@ import { getLevelDescription } from "@/lib/gameLogic";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Zap, LightbulbIcon, BrainCircuit } from "lucide-react";
+import { getOrCreateGame } from "@/lib/gameDistribution";
+import { toast } from "sonner";
 
 const LevelSelect = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useGame();
   const [selectedLevels, setSelectedLevels] = useState<Level[]>([]);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { player } = state;
 
   useEffect(() => {
@@ -50,25 +53,56 @@ const LevelSelect = () => {
     }
   };
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     if (selectedLevels.length === 0) {
       setError("Please select at least one level to play");
       return;
     }
 
-    // Sort levels in ascending order
-    const sortedLevels = [...selectedLevels].sort((a, b) => a - b);
+    if (!player?.id) {
+      toast.error("Please enter your name to start a game");
+      navigate("/");
+      return;
+    }
 
-    // Start a new game session
-    dispatch({
-      type: "START_SESSION",
-      payload: {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      // Sort levels in ascending order
+      const sortedLevels = [...selectedLevels].sort((a, b) => a - b);
+
+      // Find or create a suitable game
+      const game = await getOrCreateGame({
         selectedLevels: sortedLevels,
-      },
-    });
+        playerName: player.name,
+        playerId: player.id,
+        preferredGameSize: 20,
+        avoidRecentGames: true,
+      });
 
-    // Navigate to game page
-    navigate("/game");
+      if (!game) {
+        setError("Failed to find or create a game. Please try again.");
+        return;
+      }
+
+      // Start a new game session
+      dispatch({
+        type: "START_SESSION",
+        payload: {
+          selectedLevels: sortedLevels,
+          gameId: game.id,
+        },
+      });
+
+      // Navigate to game page
+      navigate("/game");
+    } catch (error) {
+      console.error("Error starting game:", error);
+      setError("An error occurred while starting the game. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -95,12 +129,9 @@ const LevelSelect = () => {
             ))}
           </div>
 
-          <div className="flex justify-center mt-12">
-            <GameButton onClick={handleStartGame} disabled={selectedLevels.length === 0} className="bttf-glow text-lg px-8 py-4">
-              <span className="relative">
-                <span className="absolute inset-0 animate-pulse opacity-50 bg-primary/20 rounded-lg" />
-                <span className="relative">Start Challenge</span>
-              </span>
+          <div className="text-center">
+            <GameButton onClick={handleStartGame} disabled={selectedLevels.length === 0 || isLoading} className="w-full md:w-auto">
+              {isLoading ? "Finding Your Game..." : "Start Your Journey"}
             </GameButton>
           </div>
         </div>

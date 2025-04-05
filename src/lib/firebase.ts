@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import {
   getFirestore,
   collection,
@@ -38,6 +38,7 @@ import {
   GameAnalytics,
   QuestionStat,
   AccessCode,
+  Answer,
 } from "@/types";
 
 // Your web app's Firebase configuration
@@ -58,6 +59,11 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// Set persistence to LOCAL (persists across tabs and browser restarts)
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.error("Error setting auth persistence:", error);
+});
+
 // Collection references
 export const gamesCollection = collection(db, "games");
 export const questionsCollection = collection(db, "questions");
@@ -65,12 +71,25 @@ export const adminUsersCollection = collection(db, "adminUsers");
 export const accessCodesCollection = collection(db, "accessCodes");
 
 // Authentication functions
-export const loginWithEmail = (email: string, password: string) => {
-  return signInWithEmailAndPassword(auth, email, password);
+export const loginWithEmail = async (email: string, password: string) => {
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+    return signInWithEmailAndPassword(auth, email, password);
+  } catch (error) {
+    console.error("Error during login:", error);
+    throw error;
+  }
 };
 
-export const logoutUser = () => {
-  return signOut(auth);
+export const logoutUser = async () => {
+  try {
+    await signOut(auth);
+    // Clear local storage on logout
+    localStorage.removeItem("gameState");
+  } catch (error) {
+    console.error("Error during logout:", error);
+    throw error;
+  }
 };
 
 export const getCurrentUser = (): User | null => {
@@ -83,111 +102,57 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
 
 // Game functions
 export const createGame = async (gameData: Omit<Game, "id" | "createdAt" | "participantCount">): Promise<string> => {
-  const adminId = auth.currentUser?.uid;
-  if (!adminId) throw new Error("User not authenticated");
-
-  const gameRef = await addDoc(gamesCollection, {
-    ...gameData,
-    adminId,
-    participantCount: 0,
-    createdAt: serverTimestamp(),
-    status: gameData.scheduledStartTime ? "scheduled" : "draft",
-    scheduledStartTime: gameData.scheduledStartTime || null,
-    expirationTime: gameData.expirationTime || null,
-  });
-
-  return gameRef.id;
+  try {
+    const gamesRef = collection(db, "games");
+    const newGame = {
+      ...gameData,
+      participantCount: 0,
+      createdAt: Timestamp.now(),
+    };
+    const docRef = await addDoc(gamesRef, newGame);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating game:", error);
+    throw new Error("Failed to create game");
+  }
 };
 
-export const getGames = async (filter?: GameFilter): Promise<Game[]> => {
-  let gamesQuery = query(gamesCollection, orderBy("createdAt", "desc"));
+export const getGames = async (filters: { status?: string; isPublic?: boolean } = {}): Promise<Game[]> => {
+  try {
+    const gamesRef = collection(db, "games");
+    let q = gamesRef;
 
-  if (filter) {
-    if (filter.adminId) {
-      gamesQuery = query(gamesQuery, where("adminId", "==", filter.adminId));
+    if (filters.status) {
+      q = query(gamesRef, where("status", "==", filters.status));
     }
 
-    if (filter.status) {
-      gamesQuery = query(gamesQuery, where("status", "==", filter.status));
-    }
-
-    if (filter.isPublic !== undefined) {
-      gamesQuery = query(gamesQuery, where("isPublic", "==", filter.isPublic));
-    }
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Game));
+  } catch (error) {
+    console.error("Error getting games:", error);
+    return [];
   }
-
-  const snapshot = await getDocs(gamesQuery);
-  const games = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...(doc.data() as Record<string, unknown>),
-  })) as Game[];
-
-  // Apply text search filter if provided (client-side filtering)
-  if (filter?.searchTerm) {
-    const term = filter.searchTerm.toLowerCase();
-    return games.filter((game) => game.title.toLowerCase().includes(term) || (game.description && game.description.toLowerCase().includes(term)));
-  }
-
-  // Filter games based on scheduled times
-  const now = new Date();
-  return games.filter((game) => {
-    // If game is already active or completed, include it
-    if (game.status === "active" || game.status === "completed") return true;
-
-    // If game is scheduled, check if it should be active
-    if (game.status === "scheduled" && game.scheduledStartTime) {
-      const startTime = game.scheduledStartTime.toDate();
-      const expirationTime = game.expirationTime?.toDate();
-
-      // If game should have started and hasn't expired, automatically start it
-      if (startTime <= now && (!expirationTime || expirationTime > now)) {
-        updateGame(game.id, {
-          status: "active",
-          startedAt: Timestamp.fromDate(now),
-        });
-        return true;
-      }
-
-      // If game has expired, mark it as completed
-      if (expirationTime && expirationTime <= now) {
-        updateGame(game.id, {
-          status: "completed",
-          endedAt: Timestamp.fromDate(now),
-        });
-        return false;
-      }
-    }
-
-    return true;
-  });
 };
 
 export const getGameById = async (gameId: string): Promise<Game | null> => {
-  const docRef = doc(db, "games", gameId);
-  const docSnap = await getDoc(docRef);
-
-  if (docSnap.exists()) {
-    return {
-      id: docSnap.id,
-      ...(docSnap.data() as Record<string, unknown>),
-    } as Game;
-  } else {
+  try {
+    const gameRef = doc(db, "games", gameId);
+    const gameDoc = await getDoc(gameRef);
+    return gameDoc.exists() ? ({ id: gameDoc.id, ...gameDoc.data() } as Game) : null;
+  } catch (error) {
+    console.error("Error getting game:", error);
     return null;
   }
 };
 
-export const updateGame = async (gameId: string, gameData: Partial<Game>): Promise<void> => {
-  const gameRef = doc(db, "games", gameId);
-
-  // If updating schedule times, update status accordingly
-  if (gameData.scheduledStartTime !== undefined) {
-    gameData.status = gameData.scheduledStartTime ? "scheduled" : "draft";
+export const updateGame = async (gameId: string, updates: Partial<Game>): Promise<void> => {
+  try {
+    const gameRef = doc(db, "games", gameId);
+    await updateDoc(gameRef, updates);
+  } catch (error) {
+    console.error("Error updating game:", error);
+    throw new Error("Failed to update game");
   }
-
-  return await updateDoc(gameRef, {
-    ...gameData,
-    lastStatusUpdate: serverTimestamp(),
-  });
 };
 
 export const deleteGame = async (gameId: string): Promise<void> => {
@@ -261,59 +226,30 @@ export const createQuestion = async (questionData: Omit<Question, "id" | "create
   return questionRef.id;
 };
 
-export const getQuestions = async (filter?: QuestionFilter): Promise<Question[]> => {
-  let questionsQuery = query(questionsCollection, orderBy("createdAt", "desc"));
+export const getQuestions = async (level?: Level): Promise<Question[]> => {
+  try {
+    const questionsRef = collection(db, "questions");
+    let q = questionsRef;
 
-  if (filter) {
-    if (filter.level) {
-      questionsQuery = query(questionsQuery, where("level", "==", filter.level));
+    if (level !== undefined) {
+      q = query(questionsRef, where("level", "==", level));
     }
 
-    if (filter.difficulty) {
-      questionsQuery = query(questionsQuery, where("difficulty", "==", filter.difficulty));
-    }
-
-    if (filter.type) {
-      questionsQuery = query(questionsQuery, where("type", "==", filter.type));
-    }
-
-    if (filter.topic) {
-      questionsQuery = query(questionsQuery, where("topic", "==", filter.topic));
-    }
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Question));
+  } catch (error) {
+    console.error("Error getting questions:", error);
+    return [];
   }
-
-  const snapshot = await getDocs(questionsQuery);
-  const questions = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...(doc.data() as Record<string, unknown>),
-  })) as Question[];
-
-  // Apply media and text search filters (client-side filtering)
-  return questions.filter((question) => {
-    if (filter?.hasMedia !== undefined) {
-      const hasMedia = !!(question.imageUrl || question.videoUrl);
-      if (filter.hasMedia !== hasMedia) return false;
-    }
-
-    if (filter?.searchTerm) {
-      const term = filter.searchTerm.toLowerCase();
-      return question.text.toLowerCase().includes(term) || question.topic.toLowerCase().includes(term);
-    }
-
-    return true;
-  });
 };
 
 export const getQuestionById = async (questionId: string): Promise<Question | null> => {
-  const docRef = doc(db, "questions", questionId);
-  const docSnap = await getDoc(docRef);
-
-  if (docSnap.exists()) {
-    return {
-      id: docSnap.id,
-      ...(docSnap.data() as Record<string, unknown>),
-    } as Question;
-  } else {
+  try {
+    const questionRef = doc(db, "questions", questionId);
+    const questionDoc = await getDoc(questionRef);
+    return questionDoc.exists() ? ({ id: questionDoc.id, ...questionDoc.data() } as Question) : null;
+  } catch (error) {
+    console.error("Error getting question:", error);
     return null;
   }
 };
@@ -484,82 +420,19 @@ export const updateParticipant = async (gameId: string, participantId: string, p
   });
 };
 
-export const submitAnswer = async (gameId: string, participantId: string, answer: Omit<ParticipantAnswer, "isCorrect" | "pointsEarned">): Promise<void> => {
-  // Get the question to check if the answer is correct
-  const questionDoc = await getDoc(doc(db, "questions", answer.questionId));
-
-  if (!questionDoc.exists()) {
-    throw new Error("Question not found");
+export const submitAnswer = async (gameId: string, answer: Omit<Answer, "id" | "submittedAt">): Promise<string> => {
+  try {
+    const answersRef = collection(db, "games", gameId, "answers");
+    const newAnswer = {
+      ...answer,
+      submittedAt: Timestamp.now(),
+    };
+    const docRef = await addDoc(answersRef, newAnswer);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error submitting answer:", error);
+    throw new Error("Failed to submit answer");
   }
-
-  const question = questionDoc.data() as Question;
-  const isCorrect = question.correctAnswer === answer.selectedAnswer;
-
-  // Calculate points
-  let pointsEarned = 0;
-  if (isCorrect) {
-    // Base points
-    pointsEarned = question.pointValue;
-
-    // Time bonus (up to 50% extra for finishing quickly)
-    const timeRatio = answer.timeRemaining / question.timeLimit;
-    const timeBonus = Math.floor(pointsEarned * 0.5 * timeRatio);
-    pointsEarned += timeBonus;
-
-    // Hint penalty
-    if (answer.usedHint) {
-      pointsEarned = Math.max(0, pointsEarned - question.hintPenalty);
-    }
-  }
-
-  const batch = writeBatch(db);
-  const participantRef = doc(db, "games", gameId, "participants", participantId);
-
-  // Get current participant data
-  const participantDoc = await getDoc(participantRef);
-  if (!participantDoc.exists()) {
-    throw new Error("Participant not found");
-  }
-
-  const participant = participantDoc.data() as Participant;
-
-  // Create the complete answer
-  const completeAnswer: ParticipantAnswer = {
-    ...answer,
-    isCorrect,
-    pointsEarned,
-  };
-
-  // Update participant with new answer
-  const updatedAnswers = [...(participant.answers || []), completeAnswer];
-  const newCorrectAnswers = participant.correctAnswers + (isCorrect ? 1 : 0);
-  const newScore = participant.score + pointsEarned;
-
-  batch.update(participantRef, {
-    answers: updatedAnswers,
-    correctAnswers: newCorrectAnswers,
-    score: newScore,
-    lastAnswerAt: serverTimestamp(),
-    status: "thinking" as ParticipantStatus,
-  });
-
-  // Update game's current question if this is the last participant
-  const gameRef = doc(db, "games", gameId);
-  const gameDoc = await getDoc(gameRef);
-
-  if (gameDoc.exists()) {
-    const game = gameDoc.data() as Game;
-
-    // If this is the last question, mark the game as completed
-    if (answer.questionIndex === game.questionIds?.length - 1) {
-      batch.update(gameRef, {
-        lastQuestionEndedAt: serverTimestamp(),
-        status: "completed" as GameStatus,
-      });
-    }
-  }
-
-  return await batch.commit();
 };
 
 export const kickParticipant = async (gameId: string, participantId: string): Promise<void> => {
@@ -660,59 +533,51 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
 };
 
 // Analytics functions
-export const generateGameAnalytics = async (gameId: string): Promise<GameAnalytics> => {
-  // Get all participants
-  const participantsRef = collection(db, "games", gameId, "participants");
-  const participantsSnapshot = await getDocs(participantsRef);
-  const participants = participantsSnapshot.docs.map((doc) => doc.data() as Participant);
+export const getGameAnalytics = async (gameId: string): Promise<GameAnalytics | null> => {
+  try {
+    const game = await getGameById(gameId);
+    if (!game) return null;
 
-  // Get all questions for this game
-  const gameQuestions = await getGameQuestions(gameId);
+    const answersRef = collection(db, "games", gameId, "answers");
+    const snapshot = await getDocs(answersRef);
+    const answers = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Answer));
 
-  // Calculate analytics
-  const totalParticipants = participants.length;
-  const completedParticipants = participants.filter((p) => p.status === "completed").length;
-  const completionRate = totalParticipants > 0 ? (completedParticipants / totalParticipants) * 100 : 0;
-
-  // Calculate average score
-  const totalScore = participants.reduce((sum, p) => sum + p.score, 0);
-  const averageScore = totalParticipants > 0 ? totalScore / totalParticipants : 0;
-
-  // Calculate question stats
-  const questionStats: QuestionStat[] = gameQuestions.map((question) => {
-    // Get all answers for this question
-    const answers = participants.flatMap((p) => p.answers.filter((a) => a.questionId === question.id));
-
+    // Calculate analytics
     const totalAnswers = answers.length;
     const correctAnswers = answers.filter((a) => a.isCorrect).length;
-    const correctRate = totalAnswers > 0 ? (correctAnswers / totalAnswers) * 100 : 0;
+    const completionRate = totalAnswers > 0 ? (correctAnswers / totalAnswers) * 100 : 0;
 
-    const totalTime = answers.reduce((sum, a) => sum + (question.timeLimit - a.timeRemaining), 0);
-    const averageTime = totalAnswers > 0 ? totalTime / totalAnswers : 0;
+    // Group answers by question
+    const questionStats = answers.reduce((stats, answer) => {
+      if (!stats[answer.questionId]) {
+        stats[answer.questionId] = { total: 0, correct: 0 };
+      }
+      stats[answer.questionId].total++;
+      if (answer.isCorrect) stats[answer.questionId].correct++;
+      return stats;
+    }, {} as Record<string, { total: number; correct: number }>);
 
-    const hintsUsed = answers.filter((a) => a.usedHint).length;
-    const hintUsageRate = totalAnswers > 0 ? (hintsUsed / totalAnswers) * 100 : 0;
+    // Calculate average correct rate per question
+    const questionCorrectRates = Object.values(questionStats).map((stat) => (stat.correct / stat.total) * 100);
+    const averageCorrectRate = questionCorrectRates.reduce((sum, rate) => sum + rate, 0) / questionCorrectRates.length;
 
     return {
-      questionId: question.id,
-      correctRate,
-      averageTime,
-      hintUsageRate,
+      gameId,
+      totalAnswers,
+      correctAnswers,
+      completionRate,
+      averageScore: (correctAnswers / totalAnswers) * 100,
+      questionStats: Object.entries(questionStats).map(([questionId, stat]) => ({
+        questionId,
+        totalAttempts: stat.total,
+        correctAttempts: stat.correct,
+        correctRate: (stat.correct / stat.total) * 100,
+      })),
     };
-  });
-
-  const analytics: GameAnalytics = {
-    gameId,
-    totalParticipants,
-    averageScore,
-    completionRate,
-    questionStats,
-  };
-
-  // Store analytics in Firestore
-  await setDoc(doc(db, "gameAnalytics", gameId), analytics);
-
-  return analytics;
+  } catch (error) {
+    console.error("Error getting game analytics:", error);
+    return null;
+  }
 };
 
 export interface User {

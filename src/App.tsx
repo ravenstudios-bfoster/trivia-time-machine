@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useGame } from "@/context/GameContext";
 import Auth from "./pages/Auth";
 import LevelSelect from "./pages/LevelSelect";
@@ -16,9 +16,21 @@ import { AuthProvider } from "./context/AuthContext";
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { state } = useGame();
+  const location = useLocation();
 
+  // Only redirect to auth if there's no player
   if (!state.player?.id) {
     return <Navigate to="/" replace />;
+  }
+
+  // For /game route, ensure we have an active session
+  if (location.pathname === "/game" && !state.currentSession) {
+    return <Navigate to="/levels" replace />;
+  }
+
+  // For /results route, ensure we have a session
+  if (location.pathname === "/results" && !state.currentSession) {
+    return <Navigate to="/levels" replace />;
   }
 
   return <>{children}</>;

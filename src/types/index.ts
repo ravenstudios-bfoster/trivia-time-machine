@@ -87,24 +87,21 @@ export type GameStatus = "draft" | "scheduled" | "active" | "completed" | "ended
 export interface Game {
   id: string;
   title: string;
-  description?: string;
+  description: string;
   maxParticipants: number;
   isPublic: boolean;
-  scheduledStartTime?: Timestamp;
-  expirationTime?: Timestamp;
-  status: GameStatus;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  startedAt?: Timestamp;
-  endedAt?: Timestamp;
-  lastStatusUpdate?: Timestamp;
-  timeLimit?: number;
+  status: "active" | "completed" | "cancelled";
+  timeLimit: number;
   enableHints: boolean;
   enableBonusQuestions: boolean;
   enablePostGameReview: boolean;
   allowedLevels: string[];
   currentQuestionIndex: number;
   adminId: string;
+  participants: Participant[];
+  participantCount: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 // Game Question Junction
@@ -171,10 +168,16 @@ export type QuestionStat = {
 
 export type GameAnalytics = {
   gameId: string;
-  totalParticipants: number;
+  totalAnswers: number;
+  correctAnswers: number;
+  completionRate: number;
   averageScore: number;
-  completionRate: number; // percentage
-  questionStats: QuestionStat[];
+  questionStats: {
+    questionId: string;
+    totalAttempts: number;
+    correctAttempts: number;
+    correctRate: number;
+  }[];
 };
 
 // Filter Types
@@ -206,10 +209,7 @@ export type ParticipantFilter = {
 export interface AccessCode {
   id: string;
   code: string;
-  startDate: Date;
-  expirationDate: Date;
-  createdAt: Date;
-  createdBy: string;
-  isActive: boolean;
-  description?: string;
+  isUsed: boolean;
+  usedAt?: Timestamp;
+  usedBy?: string;
 }

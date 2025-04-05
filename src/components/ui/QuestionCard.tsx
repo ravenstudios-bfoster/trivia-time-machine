@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Question, AnswerOption } from "@/types";
 import { Lightbulb, HelpCircle } from "lucide-react";
@@ -12,12 +11,7 @@ import { createTimer } from "@/lib/gameLogic";
 
 interface QuestionCardProps {
   question: Question;
-  onSubmit: (
-    selectedOptionId?: string,
-    writtenAnswer?: string,
-    timeRemaining?: number,
-    usedHint?: boolean
-  ) => void;
+  onSubmit: (selectedOptionId?: string, writtenAnswer?: string, timeRemaining?: number, usedHint?: boolean) => void;
 }
 
 const QuestionCard = ({ question, onSubmit }: QuestionCardProps) => {
@@ -27,7 +21,7 @@ const QuestionCard = ({ question, onSubmit }: QuestionCardProps) => {
   const [usedHint, setUsedHint] = useState<boolean>(false);
   const [showHint, setShowHint] = useState<boolean>(false);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
-  
+
   // Reset state when question changes
   useEffect(() => {
     setSelectedOptionId("");
@@ -37,45 +31,47 @@ const QuestionCard = ({ question, onSubmit }: QuestionCardProps) => {
     setShowHint(false);
     setIsAnswered(false);
   }, [question]);
-  
+
   // Set up timer
   useEffect(() => {
     if (isAnswered) return;
-    
+
     const timer = createTimer(
       question.timeLimit,
       (time) => setTimeRemaining(time),
       () => handleSubmit(true)
     );
-    
+
     timer.start();
-    
+
     return () => timer.stop();
   }, [question, isAnswered]);
-  
+
   const handleShowHint = () => {
     setUsedHint(true);
     setShowHint(true);
   };
-  
+
   const handleSubmit = (isTimeout: boolean = false) => {
     if (isAnswered) return;
-    
+
     setIsAnswered(true);
-    
+
     // Call onSubmit with appropriate values
-    if (question.type === 'write-in') {
+    if (question.type === "write-in") {
       onSubmit(undefined, writtenAnswer, timeRemaining, usedHint);
     } else {
       onSubmit(selectedOptionId, undefined, timeRemaining, usedHint);
     }
   };
-  
+
   const renderOptions = () => {
-    if (question.type === 'write-in') {
+    if (question.type === "write-in") {
       return (
-        <div className="mt-6">
-          <Label htmlFor="answer" className="text-lg mb-2 block">Your Answer:</Label>
+        <div className="mt-6" key="write-in-input">
+          <Label htmlFor="answer" className="text-lg mb-2 block">
+            Your Answer:
+          </Label>
           <Input
             id="answer"
             type="text"
@@ -87,64 +83,76 @@ const QuestionCard = ({ question, onSubmit }: QuestionCardProps) => {
           />
         </div>
       );
-    } else {
+    }
+
+    // Transform string options into AnswerOption objects
+    const options: AnswerOption[] = (question.options || []).map((text, index) => ({
+      id: `option-${index}`,
+      text,
+      isCorrect: index === question.correctAnswer,
+    }));
+
+    return (
+      <RadioGroup value={selectedOptionId} onValueChange={setSelectedOptionId} className="mt-6 space-y-4" disabled={isAnswered}>
+        {options.map((option) => (
+          <div key={`option-${option.id}`} className="flex items-center space-x-3">
+            <RadioGroupItem id={`radio-${option.id}`} value={option.id} className="border-2 border-bttf-silver focus:border-bttf-blue" />
+            <Label htmlFor={`radio-${option.id}`} className="text-lg cursor-pointer hover:text-bttf-blue transition-colors">
+              {option.text}
+            </Label>
+          </div>
+        ))}
+      </RadioGroup>
+    );
+  };
+
+  const renderHintButton = () => {
+    if (!usedHint && !isAnswered && question.hint) {
       return (
-        <RadioGroup
-          value={selectedOptionId}
-          onValueChange={setSelectedOptionId}
-          className="mt-6 space-y-4"
-          disabled={isAnswered}
-        >
-          {question.options?.map((option: AnswerOption) => (
-            <div key={option.id} className="flex items-center space-x-3">
-              <RadioGroupItem 
-                id={option.id} 
-                value={option.id} 
-                className="border-2 border-bttf-silver focus:border-bttf-blue"
-              />
-              <Label 
-                htmlFor={option.id} 
-                className="text-lg cursor-pointer hover:text-bttf-blue transition-colors"
-              >
-                {option.text}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
+        <GameButton key="hint-button" variant="secondary" size="sm" onClick={handleShowHint} className="inline-flex items-center gap-2">
+          <HelpCircle size={16} />
+          Use Hint
+        </GameButton>
       );
     }
+
+    if (usedHint && !showHint) {
+      return (
+        <GameButton key="show-hint-button" variant="secondary" size="sm" onClick={() => setShowHint(true)}>
+          Show Hint
+        </GameButton>
+      );
+    }
+
+    if (!usedHint && !question.hint) {
+      return <div key="empty-hint-space" />;
+    }
+
+    return null;
   };
-  
+
   return (
     <Card className="flux-container w-full max-w-3xl animate-fade-in">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center">
-          <span className="badge bg-bttf-blue text-white px-3 py-1 rounded-md text-sm font-bold">
-            Level {question.level}
-          </span>
-          <span className="ml-3 text-bttf-yellow text-lg font-bold">
-            {question.pointValue} pts
-          </span>
+          <span className="badge bg-bttf-blue text-white px-3 py-1 rounded-md text-sm font-bold">Level {question.level}</span>
+          <span className="ml-3 text-bttf-yellow text-lg font-bold">{question.pointValue} pts</span>
         </div>
         <TimerCircuit timeInSeconds={timeRemaining} isRunning={!isAnswered} />
       </div>
-      
+
       <div className="mb-6">
         <h3 className="text-xl font-bold mb-4">{question.text}</h3>
-        
+
         {question.imageUrl && (
           <div className="mb-4 rounded-md overflow-hidden">
-            <img 
-              src={question.imageUrl} 
-              alt="Question visual" 
-              className="w-full h-auto object-cover"
-            />
+            <img src={question.imageUrl} alt="Question visual" className="w-full h-auto object-cover" />
           </div>
         )}
-        
+
         {renderOptions()}
       </div>
-      
+
       {showHint && (
         <div className="mb-6 p-4 bg-bttf-yellow/20 rounded-md border border-bttf-yellow">
           <div className="flex items-start">
@@ -157,39 +165,11 @@ const QuestionCard = ({ question, onSubmit }: QuestionCardProps) => {
           </div>
         </div>
       )}
-      
+
       <div className="flex justify-between items-center">
-        {!usedHint && !isAnswered && question.hint && (
-          <GameButton 
-            variant="muted" 
-            size="sm" 
-            onClick={handleShowHint}
-            icon={<HelpCircle size={16} />}
-          >
-            Use Hint
-          </GameButton>
-        )}
-        
-        {usedHint && !showHint && (
-          <GameButton 
-            variant="muted" 
-            size="sm" 
-            onClick={() => setShowHint(true)}
-          >
-            Show Hint
-          </GameButton>
-        )}
-        
-        {!usedHint && !question.hint && <div></div>}
-        
-        <GameButton 
-          onClick={() => handleSubmit(false)} 
-          disabled={
-            isAnswered || 
-            (question.type !== 'write-in' && !selectedOptionId) ||
-            (question.type === 'write-in' && !writtenAnswer.trim())
-          }
-        >
+        {renderHintButton()}
+
+        <GameButton onClick={() => handleSubmit(false)} disabled={isAnswered || (question.type !== "write-in" && !selectedOptionId) || (question.type === "write-in" && !writtenAnswer.trim())}>
           Submit Answer
         </GameButton>
       </div>
