@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { LayoutDashboard, Gamepad2, HelpCircle, Users, LogOut, ChevronRight, ShieldAlert, Database } from "lucide-react";
+import { LayoutDashboard, Gamepad2, HelpCircle, Users, LogOut, ChevronRight, ShieldAlert, Database, Trophy } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -47,8 +47,10 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
 
   const navItems = [
     { label: "Dashboard", href: "/admin/dashboard", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
-    { label: "Games", href: "/admin/games", icon: <Gamepad2 className="h-4 w-4 mr-2" /> },
     { label: "Questions", href: "/admin/questions", icon: <HelpCircle className="h-4 w-4 mr-2" /> },
+    { label: "Games", href: "/admin/games", icon: <Gamepad2 className="h-4 w-4 mr-2" /> },
+    { label: "Leaderboard", href: "/admin/leaderboard", icon: <Trophy className="h-4 w-4 mr-2" /> },
+    { label: "Participants", href: "/admin/participants", icon: <Users className="h-4 w-4 mr-2" /> },
   ];
 
   // Add Users link for super admins only
@@ -76,15 +78,6 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
       <header className="border-b border-[#333] bg-[#111]">
         <div className="container py-4 flex justify-between items-center">
           <Link to="/admin/dashboard" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FF3D00] rounded-full animate-[pulse_2s_ease-in-out_infinite]" />
-              <div className="absolute inset-2 bg-[#111] rounded-full" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-1 h-5 bg-[#00f7ff] animate-[pulse_1s_ease-in-out_infinite]" />
-                <div className="w-5 h-1 bg-[#00f7ff] animate-[pulse_1s_ease-in-out_infinite] absolute" />
-                <div className="w-3 h-3 border-2 border-[#00f7ff] rounded-full absolute animate-[pulse_1s_ease-in-out_infinite]" />
-              </div>
-            </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#FFD700] to-[#FF3D00] drop-shadow-[0_0_10px_rgba(255,61,0,0.5)]">Trivia Admin</h1>
               <p className="text-sm text-[#666]">Back to the Future Edition</p>

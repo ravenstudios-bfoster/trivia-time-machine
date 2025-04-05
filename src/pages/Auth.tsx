@@ -102,7 +102,7 @@ const Auth = () => {
         <div className="max-w-lg w-full mx-auto text-center">
           {/* Title */}
           <img src="/images/logo.png" alt="Back to the Future" className="w-full max-w-md mx-auto mb-4" />
-          <h2 className="text-2xl md:text-3xl mb-12 text-primary/80 font-mono">Tom's 50th Birthday Challenge</h2>
+          <h2 className="text-2xl md:text-3xl mb-12 text-primary/80 font-mono">Tom's 50th Birthday Edition</h2>
 
           {/* Time Circuit Display */}
           <div className="mb-12">

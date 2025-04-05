@@ -30,27 +30,14 @@ const LevelSelect = () => {
   const toggleLevel = (level: Level) => {
     setError("");
 
-    // Check if level is already selected
+    // If the level is already selected, deselect it
     if (selectedLevels.includes(level)) {
-      setSelectedLevels(selectedLevels.filter((l) => l !== level));
+      setSelectedLevels([]);
       return;
     }
 
-    // Check if trying to add a consecutive level
-    if (selectedLevels.length === 1) {
-      const currentLevel = selectedLevels[0];
-      if (Math.abs(currentLevel - level) === 1) {
-        setError("You cannot select consecutive levels. Choose levels that are not adjacent.");
-        return;
-      }
-    }
-
-    // Add level if less than 2 are selected
-    if (selectedLevels.length < 2) {
-      setSelectedLevels([...selectedLevels, level]);
-    } else {
-      setError("You can only select 2 levels. Deselect one to choose another.");
-    }
+    // Otherwise, select the new level (replacing any existing selection)
+    setSelectedLevels([level]);
   };
 
   const handleStartGame = async () => {
@@ -113,8 +100,8 @@ const LevelSelect = () => {
           <div className="text-center mb-12 animate-fade-in">
             <h1 className="bttf-heading text-4xl md:text-5xl mb-6">Select Your Challenge</h1>
             <div className="inline-block bg-black/50 backdrop-blur px-6 py-3 rounded-lg border border-primary/20">
-              <p className="text-primary font-mono text-sm md:text-base">CHOOSE YOUR TEMPORAL DESTINATIONS</p>
-              <p className="text-xs text-muted-foreground mt-2">Select up to 2 non-consecutive levels to test your knowledge</p>
+              <p className="text-primary font-mono text-sm md:text-base">CHOOSE YOUR TEMPORAL DESTINATION</p>
+              <p className="text-xs text-muted-foreground mt-2">Select one level to test your knowledge</p>
             </div>
             {error && (
               <div className="mt-4 animate-pulse">

@@ -47,16 +47,7 @@ const AdminLogin = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 relative mx-auto mb-4 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-bttf-yellow to-bttf-orange rounded-full animate-flux-capacitor" />
-            <div className="absolute inset-3 bg-background rounded-full" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-1.5 h-8 bg-bttf-blue animate-pulse" />
-              <div className="w-8 h-1.5 bg-bttf-blue animate-pulse absolute" />
-              <div className="w-5 h-5 border-2 border-bttf-blue rounded-full absolute animate-pulse" />
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold chrome-text">Trivia Time Machine</h1>
+          <h1 className="text-3xl font-bold chrome-text">BTTF Trivia</h1>
           <p className="text-muted-foreground mt-1">Admin Access</p>
         </div>
 

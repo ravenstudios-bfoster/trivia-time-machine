@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const TimeCircuitDisplay = () => {
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [clickCount, setClickCount] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -10,6 +14,19 @@ const TimeCircuitDisplay = () => {
 
     return () => clearInterval(timer);
   }, []);
+
+  const handleTimeCircuitClick = () => {
+    setClickCount((prev) => prev + 1);
+
+    if (clickCount === 4) {
+      toast.info("Accessing admin area...", {
+        description: "This area is for game administrators only.",
+      });
+      navigate("/admin");
+    } else if (clickCount > 0) {
+      toast.info(`${5 - clickCount} more clicks to access admin area...`);
+    }
+  };
 
   const formatTimeCircuit = (date: Date) => {
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -22,8 +39,7 @@ const TimeCircuitDisplay = () => {
 
   // Calculate dates
   const current = formatTimeCircuit(currentTime);
-  const destination = formatTimeCircuit(new Date(1974, 3, 4)); // April 4, 1974
-  const last = formatTimeCircuit(new Date());
+  const destination = formatTimeCircuit(new Date(1974, 4, 26)); // May 27, 1974
 
   // Single LED digit display
   const Digit = ({ value, color }: { value: string; color: string }) => (
@@ -89,15 +105,15 @@ const TimeCircuitDisplay = () => {
     <div className="relative w-full max-w-[900px] mx-auto">
       {/* Main time circuit panel */}
       <div
-        className="relative bg-[#111] rounded-sm p-8 shadow-2xl"
+        className="relative bg-[#111] rounded-sm p-8 shadow-2xl cursor-pointer transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,0,0,0.3)]"
         style={{
           boxShadow: "inset 0 0 40px rgba(0,0,0,0.9)",
         }}
+        onClick={handleTimeCircuitClick}
       >
         <div className="flex flex-col gap-12">
           <TimeDisplay label="DESTINATION TIME" time={destination} color="text-red-500" />
           <TimeDisplay label="PRESENT TIME" time={current} color="text-green-500" />
-          <TimeDisplay label="LAST TIME DEPARTED" time={last} color="text-yellow-500" />
         </div>
       </div>
     </div>
