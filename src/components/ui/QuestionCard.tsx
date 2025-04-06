@@ -132,20 +132,20 @@ const QuestionCard = ({ question, onSubmit }: QuestionCardProps) => {
   };
 
   return (
-    <Card className="flux-container w-full max-w-3xl animate-fade-in">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center">
-          <span className="badge bg-bttf-blue text-white px-3 py-1 rounded-md text-sm font-bold">Level {question.level}</span>
-          <span className="ml-3 text-bttf-yellow text-lg font-bold">{question.pointValue} pts</span>
+    <Card className="flux-container w-full max-w-3xl animate-fade-in p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="badge bg-bttf-blue text-white px-3 py-1.5 rounded-md text-sm font-bold">Level {question.level}</span>
+          <span className="text-bttf-yellow text-lg font-bold">{question.pointValue} pts</span>
         </div>
         <TimerCircuit timeInSeconds={timeRemaining} isRunning={!isAnswered} />
       </div>
 
-      <div className="mb-6">
-        <h3 className="text-xl font-bold mb-4">{question.text}</h3>
+      <div className="space-y-6">
+        <h3 className="text-xl font-bold">{question.text}</h3>
 
         {question.imageUrl && (
-          <div className="mb-4 rounded-md overflow-hidden">
+          <div className="rounded-md overflow-hidden">
             <img src={question.imageUrl} alt="Question visual" className="w-full h-auto object-cover" />
           </div>
         )}
@@ -154,7 +154,7 @@ const QuestionCard = ({ question, onSubmit }: QuestionCardProps) => {
       </div>
 
       {showHint && (
-        <div className="mb-6 p-4 bg-bttf-yellow/20 rounded-md border border-bttf-yellow">
+        <div className="p-4 bg-bttf-yellow/20 rounded-md border border-bttf-yellow">
           <div className="flex items-start">
             <Lightbulb className="text-bttf-yellow mr-3 mt-1 flex-shrink-0" />
             <div>
@@ -166,7 +166,7 @@ const QuestionCard = ({ question, onSubmit }: QuestionCardProps) => {
         </div>
       )}
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center pt-2">
         {renderHintButton()}
 
         <GameButton onClick={() => handleSubmit(false)} disabled={isAnswered || (question.type !== "write-in" && !selectedOptionId) || (question.type === "write-in" && !writtenAnswer.trim())}>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
+import { Layout } from "@/components/ui/Layout";
 import QuestionCard from "@/components/ui/QuestionCard";
 import { LiveScore } from "@/components/ui/ScoreDisplay";
 import TimeCircuit from "@/components/ui/TimeCircuit";
@@ -114,9 +114,9 @@ const Game = () => {
   return (
     <Layout>
       <div className="container py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+        <div className="max-w-3xl mx-auto space-y-8">
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1 className="bttf-heading text-2xl mb-1">Level {currentSession.currentLevel}</h1>
                 <p className="text-muted-foreground">
@@ -124,7 +124,7 @@ const Game = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 mt-3 md:mt-0">
+              <div className="flex items-center gap-3">
                 <TimeCircuit
                   label="Current Date"
                   value={new Date()
@@ -139,7 +139,7 @@ const Game = () => {
               </div>
             </div>
 
-            <LiveScore score={currentScore} questionNumber={questionNumber} totalQuestions={currentLevelQuestions.length} timeRemaining={timeRemaining} className="mb-6" />
+            <LiveScore score={currentScore} questionNumber={questionNumber} totalQuestions={currentLevelQuestions.length} timeRemaining={timeRemaining} />
           </div>
 
           <div className={`transition-all duration-500 ${isTransitioning ? "opacity-0 translate-x-10" : "opacity-100 translate-x-0"}`}>

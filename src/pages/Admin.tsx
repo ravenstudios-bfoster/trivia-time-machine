@@ -1,7 +1,6 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
+import { Layout } from "@/components/ui/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +12,7 @@ const Admin = () => {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const { state } = useGame();
-  
+
   // Simple admin authentication (in a real app, this would be more secure)
   const handleAuthenticate = () => {
     // Admin password is "bttf1985" (from Back to the Future)
@@ -24,7 +23,7 @@ const Admin = () => {
       toast.error("Invalid password");
     }
   };
-  
+
   // Redirect to home if accessed directly without authentication
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -33,10 +32,10 @@ const Admin = () => {
         navigate("/");
       }
     }, 30000); // 30 seconds
-    
+
     return () => clearTimeout(timer);
   }, [authenticated, navigate]);
-  
+
   return (
     <Layout>
       <div className="container py-10">
@@ -45,13 +44,13 @@ const Admin = () => {
             <Card className="p-6 border-red-400/30 bg-black/50">
               <h1 className="text-2xl font-bold mb-6 text-red-400">Admin Authentication Required</h1>
               <div className="space-y-4">
-                <Input 
+                <Input
                   type="password"
                   placeholder="Enter admin password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAuthenticate();
+                    if (e.key === "Enter") handleAuthenticate();
                   }}
                   autoFocus
                 />
@@ -59,16 +58,14 @@ const Admin = () => {
                   <Button variant="outline" onClick={() => navigate("/")}>
                     Cancel
                   </Button>
-                  <Button onClick={handleAuthenticate}>
-                    Authenticate
-                  </Button>
+                  <Button onClick={handleAuthenticate}>Authenticate</Button>
                 </div>
               </div>
             </Card>
           ) : (
             <div className="space-y-6">
               <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-              
+
               <Card className="p-6 border-blue-400/30">
                 <h2 className="text-xl font-bold mb-4">Game Statistics</h2>
                 <div className="space-y-2">
@@ -77,7 +74,7 @@ const Admin = () => {
                   <p>Active Session: {state.currentSession ? "Yes" : "No"}</p>
                 </div>
               </Card>
-              
+
               <Card className="p-6 border-amber-400/30">
                 <h2 className="text-xl font-bold mb-4">Game Controls</h2>
                 <div className="flex flex-wrap gap-4">

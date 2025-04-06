@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User, createUserWithEmailAndPassword, updateProfile, setPersistence, browserLocalPersistence } from "firebase/auth";
 import {
   getFirestore,
   collection,
@@ -39,6 +39,8 @@ import {
   QuestionStat,
   AccessCode,
   Answer,
+  Costume,
+  Vote,
 } from "@/types";
 
 // Your web app's Firebase configuration
@@ -69,6 +71,9 @@ export const gamesCollection = collection(db, "games");
 export const questionsCollection = collection(db, "questions");
 export const adminUsersCollection = collection(db, "adminUsers");
 export const accessCodesCollection = collection(db, "accessCodes");
+export const costumesCollection = collection(db, "costumes");
+export const votesCollection = collection(db, "votes");
+export const usersCollection = collection(db, "users");
 
 // Authentication functions
 export const loginWithEmail = async (email: string, password: string) => {
@@ -527,9 +532,20 @@ export const validateAccessCode = async (code: string): Promise<boolean> => {
 
 // Storage functions
 export const uploadFile = async (file: File, path: string): Promise<string> => {
-  const storageRef = ref(storage, path);
-  const snapshot = await uploadBytes(storageRef, file);
-  return await getDownloadURL(snapshot.ref);
+  try {
+    const metadata = {
+      contentType: file.type,
+      customMetadata: {
+        "Cross-Origin-Resource-Policy": "cross-origin",
+      },
+    };
+    const storageRef = ref(storage, path);
+    const snapshot = await uploadBytes(storageRef, file, metadata);
+    return await getDownloadURL(snapshot.ref);
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    throw new Error("Failed to upload file");
+  }
 };
 
 // Analytics functions
@@ -590,41 +606,23 @@ export interface User {
   gamesParticipated: number;
 }
 
-export const createOrUpdateUser = async (userData: { displayName: string; email: string }): Promise<User> => {
-  const usersRef = collection(db, "users");
-  // Use the email as the document ID
-  const userId = userData.email;
-  const userDocRef = doc(usersRef, userId);
-
+export const createOrUpdateUser = async (userData: UserData): Promise<void> => {
   try {
-    const userDoc = await getDoc(userDocRef);
-    const now = Timestamp.now();
+    const userRef = doc(usersCollection, userData.uid);
+    const userDoc = await getDoc(userRef);
 
     if (!userDoc.exists()) {
       // Create new user
-      const newUser: User = {
-        id: userId,
+      await setDoc(userRef, {
+        ...userData,
+        createdAt: Timestamp.now(),
+      });
+    } else {
+      // Update existing user
+      await updateDoc(userRef, {
         displayName: userData.displayName,
         email: userData.email,
-        role: "participant",
-        createdAt: now.toDate(),
-        lastLogin: now.toDate(),
-        gamesParticipated: 0,
-      };
-
-      await setDoc(userDocRef, newUser);
-      return newUser;
-    } else {
-      // Update existing user's last login
-      await updateDoc(userDocRef, {
-        lastLogin: now,
-        displayName: userData.displayName, // Update display name in case it changed
       });
-
-      return {
-        ...(userDoc.data() as User),
-        lastLogin: now.toDate(),
-      };
     }
   } catch (error) {
     console.error("Error creating/updating user:", error);
@@ -632,4 +630,111 @@ export const createOrUpdateUser = async (userData: { displayName: string; email:
   }
 };
 
-export { auth, db, storage };
+// Costume functions
+export const createCostume = async (costumeData: Omit<Costume, "id" | "createdAt" | "votes">): Promise<string> => {
+  try {
+    const newCostume = {
+      ...costumeData,
+      votes: {
+        bestOverall: 0,
+        mostCreative: 0,
+      },
+      createdAt: Timestamp.now(),
+    };
+    const docRef = await addDoc(costumesCollection, newCostume);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating costume:", error);
+    throw new Error("Failed to create costume");
+  }
+};
+
+export const getCostumes = async (): Promise<Costume[]> => {
+  const snapshot = await getDocs(costumesCollection);
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt.toDate(),
+  })) as Costume[];
+};
+
+export const castVote = async (userId: string, costumeId: string, category: string): Promise<void> => {
+  try {
+    const voteRef = doc(collection(db, "votes"));
+    const costumeRef = doc(collection(db, "costumes"), costumeId);
+    const existingVotes = await getDocs(query(collection(db, "votes"), where("userId", "==", userId), where("category", "==", category)));
+
+    if (!existingVotes.empty) {
+      throw new Error("You have already voted in this category");
+    }
+
+    const batch = writeBatch(db);
+
+    // Create vote document
+    batch.set(voteRef, {
+      userId,
+      costumeId,
+      category,
+      timestamp: serverTimestamp(),
+    });
+
+    // Increment vote count for the category
+    batch.update(costumeRef, {
+      [`votes.${category}`]: increment(1),
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error("Error casting vote:", error);
+    throw error;
+  }
+};
+
+export const getUserVotes = async (userId: string): Promise<Vote[]> => {
+  const voteQuery = query(votesCollection, where("userId", "==", userId));
+  const snapshot = await getDocs(voteQuery);
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    timestamp: doc.data().timestamp.toDate(),
+  })) as Vote[];
+};
+
+export const updateCostume = async (costumeId: string, updates: Partial<Costume>) => {
+  try {
+    const costumeRef = doc(db, "costumes", costumeId);
+    await updateDoc(costumeRef, {
+      ...updates,
+      updatedAt: new Date(),
+    });
+  } catch (error) {
+    console.error("Error updating costume:", error);
+    throw error;
+  }
+};
+
+// Costume Category functions
+export interface CostumeCategory {
+  id: string;
+  tag: string;
+  name: string;
+  description: string;
+  createdAt: Date;
+}
+
+export const getCostumeCategories = async (): Promise<CostumeCategory[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, "costumeCategory"));
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(),
+    })) as CostumeCategory[];
+  } catch (error) {
+    console.error("Error fetching costume categories:", error);
+    return [];
+  }
+};
+
+// Export Firebase instances and auth functions
+export { auth, db, storage, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence };

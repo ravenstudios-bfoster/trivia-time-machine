@@ -1,130 +1,90 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User } from "firebase/auth";
-import { onAuthStateChange, loginWithEmail, logoutUser } from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, onAuthStateChanged, createOrUpdateUser } from "@/lib/firebase";
+import { generateAnonymousId } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface AuthContextType {
   currentUser: User | null;
-  isAdmin: boolean;
-  isSuperAdmin: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  currentUser: null,
-  isAdmin: false,
-  isSuperAdmin: false,
-  isLoading: true,
-  login: async () => {},
-  logout: async () => {},
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => useContext(AuthContext);
-
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChange(async (user) => {
-      setCurrentUser(user);
-
-      // Check user roles
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        try {
-          // Check if user exists in adminUsers collection
-          const userRef = doc(db, "adminUsers", user.uid);
-          const userDoc = await getDoc(userRef);
-
-          if (userDoc.exists()) {
-            // User exists in adminUsers collection
-            setIsAdmin(true);
-            setIsSuperAdmin(userDoc.data().role === "super_admin");
-
-            // Update last login time
-            await setDoc(
-              userRef,
-              {
-                lastLogin: new Date(),
-              },
-              { merge: true }
-            );
-          } else {
-            // For this app, we'll assume all authenticated users are at least admins
-            // In a production app, you would be more restrictive
-            setIsAdmin(true);
-            setIsSuperAdmin(false);
-
-            // Create a record for this admin user if it doesn't exist
-            await setDoc(userRef, {
-              email: user.email,
-              displayName: user.displayName || null,
-              role: "admin",
-              createdAt: new Date(),
-              lastLogin: new Date(),
-            });
-          }
-        } catch (error) {
-          console.error("Error checking admin status:", error);
-          // Default to admin access if there's an error
-          setIsAdmin(true);
-          setIsSuperAdmin(false);
-        }
-      } else {
-        setIsAdmin(false);
-        setIsSuperAdmin(false);
+        // Create or update user in Firestore
+        await createOrUpdateUser({
+          uid: user.uid,
+          email: user.email || "",
+          displayName: user.displayName || "",
+        });
       }
-
+      setCurrentUser(user);
       setIsLoading(false);
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
-      await loginWithEmail(email, password);
-      toast.success("Logged in successfully");
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to login";
-      toast.error(errorMessage);
+      console.error("Error during login:", error);
       throw error;
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  const register = async (email: string, password: string, displayName: string) => {
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(user, { displayName });
+
+      // Create user in Firestore
+      await createOrUpdateUser({
+        uid: user.uid,
+        email: user.email || "",
+        displayName: displayName,
+      });
+    } catch (error) {
+      console.error("Error during registration:", error);
+      throw error;
     }
   };
 
   const logout = async () => {
     try {
-      setIsLoading(true);
-      await logoutUser();
-      toast.success("Logged out successfully");
+      await signOut(auth);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to logout";
-      toast.error(errorMessage);
+      console.error("Error during logout:", error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const value = {
     currentUser,
-    isAdmin,
-    isSuperAdmin,
     isLoading,
     login,
+    register,
     logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export default AuthProvider;
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
+import { Layout } from "@/components/ui/Layout";
 import GameButton from "@/components/ui/GameButton";
 import { useGame } from "@/context/GameContext";
 import { Level } from "@/types";

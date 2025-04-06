@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
+import { Layout } from "@/components/ui/Layout";
 import ScoreDisplay from "@/components/ui/ScoreDisplay";
 import GameButton from "@/components/ui/GameButton";
 import { useGame } from "@/context/GameContext";

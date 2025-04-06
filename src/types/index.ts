@@ -221,3 +221,30 @@ export interface AccessCode {
   usedAt?: Timestamp;
   usedBy?: string;
 }
+
+export interface Costume {
+  id: string;
+  characterName: string;
+  photoUrl: string;
+  submittedBy: string;
+  submitterName: string;
+  category: string;
+  createdAt: Date;
+  votes: {
+    [key: string]: number;
+  };
+}
+
+export interface Vote {
+  id: string;
+  userId: string;
+  costumeId: string;
+  category: string;
+  timestamp: Date;
+}
+
+export interface CostumeSubmission {
+  photoUrl: string;
+  characterName: string;
+  submittedBy: string;
+}

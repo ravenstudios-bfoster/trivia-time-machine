@@ -3,32 +3,35 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useGame } from "@/context/GameContext";
 import Auth from "./pages/Auth";
-import LevelSelect from "./pages/LevelSelect";
-import Game from "./pages/Game";
-import Results from "./pages/Results";
+import LevelSelect from "@/pages/LevelSelect";
+import Game from "@/pages/Game";
+import Results from "@/pages/Results";
 import NotFound from "./pages/NotFound";
-import { GameProvider } from "./context/GameContext";
+import { GameProvider } from "@/context/GameContext";
 import { AuthProvider } from "./context/AuthContext";
+import Home from "@/pages/Home";
+import Enter from "@/pages/Enter";
+import Admin from "./pages/Admin";
+import CostumeGallery from "@/pages/CostumeGallery";
+import PropsAndMemorabilia from "./pages/PropsAndMemorabilia";
+import BirthdayMessages from "./pages/BirthdayMessages";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { state } = useGame();
   const location = useLocation();
 
-  // Only redirect to auth if there's no player
   if (!state.player?.id) {
     return <Navigate to="/" replace />;
   }
 
-  // For /game route, ensure we have an active session
   if (location.pathname === "/game" && !state.currentSession) {
     return <Navigate to="/levels" replace />;
   }
 
-  // For /results route, ensure we have a session
   if (location.pathname === "/results" && !state.currentSession) {
     return <Navigate to="/levels" replace />;
   }
@@ -65,10 +68,12 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <Router>
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
-                <Route path="/" element={<Auth />} />
+                <Route path="/" element={<Home />} />
+                <Route path="/enter" element={<Enter />} />
+                <Route path="/auth" element={<Auth />} />
                 <Route
                   path="/levels"
                   element={
@@ -95,7 +100,7 @@ const App = () => (
                 />
 
                 {/* Admin Routes */}
-                <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="/admin" element={<Admin />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/games" element={<AdminGames />} />
@@ -111,10 +116,13 @@ const App = () => (
                 <Route path="/admin/seed" element={<SeedDatabase />} />
 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="/costume-voting" element={<CostumeGallery />} />
+                <Route path="/props-and-memorabilia" element={<PropsAndMemorabilia />} />
+                <Route path="/birthday-messages" element={<BirthdayMessages />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
-          </BrowserRouter>
+          </Router>
         </TooltipProvider>
       </GameProvider>
     </AuthProvider>
