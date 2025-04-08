@@ -16,7 +16,8 @@ import Home from "@/pages/Home";
 import Enter from "@/pages/Enter";
 import Admin from "./pages/Admin";
 import CostumeGallery from "@/pages/CostumeGallery";
-import PropsAndMemorabilia from "./pages/PropsAndMemorabilia";
+import PropsAndMemorabilia from "@/pages/PropsAndMemorabilia";
+import PropDetail from "./pages/PropDetail";
 import BirthdayMessages from "./pages/BirthdayMessages";
 
 // Protected Route component
@@ -51,6 +52,7 @@ const AdminUsers = lazy(() => import("./pages/admin/Users"));
 const SeedDatabase = lazy(() => import("./pages/admin/SeedDatabase"));
 const GameForm = lazy(() => import("./pages/admin/GameForm"));
 const QuestionForm = lazy(() => import("./pages/admin/QuestionForm"));
+const AdminBirthdayMessages = lazy(() => import("./pages/admin/BirthdayMessages"));
 
 const queryClient = new QueryClient();
 
@@ -114,10 +116,12 @@ const App = () => (
                 <Route path="/admin/games/:gameId/players" element={<AdminPlayers />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/seed" element={<SeedDatabase />} />
+                <Route path="/admin/birthday-messages" element={<AdminBirthdayMessages />} />
 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="/costume-voting" element={<CostumeGallery />} />
                 <Route path="/props-and-memorabilia" element={<PropsAndMemorabilia />} />
+                <Route path="/props/:id" element={<PropDetail />} />
                 <Route path="/birthday-messages" element={<BirthdayMessages />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { LayoutDashboard, Gamepad2, HelpCircle, Users, LogOut, ChevronRight, ShieldAlert, Database, Trophy } from "lucide-react";
+import { LayoutDashboard, Gamepad2, HelpCircle, Users, LogOut, ChevronRight, ShieldAlert, Database, Trophy, MessageSquare } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -51,6 +51,7 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
     { label: "Games", href: "/admin/games", icon: <Gamepad2 className="h-4 w-4 mr-2" /> },
     { label: "Leaderboard", href: "/admin/leaderboard", icon: <Trophy className="h-4 w-4 mr-2" /> },
     { label: "Participants", href: "/admin/participants", icon: <Users className="h-4 w-4 mr-2" /> },
+    { label: "Birthday Messages", href: "/admin/birthday-messages", icon: <MessageSquare className="h-4 w-4 mr-2" /> },
   ];
 
   // Add Users link for super admins only

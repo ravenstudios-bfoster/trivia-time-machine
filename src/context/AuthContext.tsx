@@ -1,90 +1,95 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User } from "firebase/auth";
-import { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, onAuthStateChanged, createOrUpdateUser } from "@/lib/firebase";
-import { generateAnonymousId } from "@/lib/utils";
+import { User, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { toast } from "sonner";
 
 interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  const checkAdminStatus = async (user: User) => {
+    const adminUsersRef = collection(db, "adminUsers");
+    const q = query(adminUsersRef, where("email", "==", user.email));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      setIsAdmin(true);
+      return true;
+    }
+
+    setIsAdmin(false);
+    return false;
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Create or update user in Firestore
-        await createOrUpdateUser({
-          uid: user.uid,
-          email: user.email || "",
-          displayName: user.displayName || "",
-        });
-      }
       setCurrentUser(user);
       setIsLoading(false);
+
+      if (user) {
+        await checkAdminStatus(user);
+      } else {
+        setIsAdmin(false);
+        setIsSuperAdmin(false);
+      }
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error("Error during login:", error);
-      throw error;
-    }
-  };
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const isUserAdmin = await checkAdminStatus(userCredential.user);
 
-  const register = async (email: string, password: string, displayName: string) => {
-    try {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(user, { displayName });
-
-      // Create user in Firestore
-      await createOrUpdateUser({
-        uid: user.uid,
-        email: user.email || "",
-        displayName: displayName,
-      });
+      if (!isUserAdmin) {
+        await signOut(auth);
+        throw new Error("User is not an admin");
+      }
     } catch (error) {
-      console.error("Error during registration:", error);
+      console.error("Login failed:", error);
       throw error;
     }
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error during logout:", error);
-      throw error;
-    }
+    await signOut(auth);
   };
 
   const value = {
     currentUser,
     isLoading,
     login,
-    register,
     logout,
+    isAdmin,
+    isSuperAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 };
