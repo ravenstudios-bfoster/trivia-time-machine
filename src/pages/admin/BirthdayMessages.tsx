@@ -4,8 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { getBirthdayMessages, updateBirthdayMessage } from "@/functions/birthdayMessages";
+import { getBirthdayMessages, updateBirthdayMessage, deleteBirthdayMessage } from "@/functions/birthdayMessages";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const AdminBirthdayMessages = () => {
   const [messages, setMessages] = useState([]);
@@ -13,12 +24,23 @@ const AdminBirthdayMessages = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [messagesPerPage] = useState(10);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  useEffect(() => {
-    const loadMessages = async () => {
+  const loadMessages = async () => {
+    setIsLoading(true);
+    try {
       const data = await getBirthdayMessages();
       setMessages(data);
-    };
+    } catch (error) {
+      console.error("Failed to load messages:", error);
+      toast.error("Failed to load messages");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadMessages();
   }, []);
 
@@ -37,22 +59,50 @@ const AdminBirthdayMessages = () => {
   };
 
   const handleBatchApprove = async () => {
+    if (selectedMessages.length === 0) return;
     try {
       await Promise.all(selectedMessages.map((id) => updateBirthdayMessage(id, { isApproved: true })));
       toast.success("Messages approved");
       setSelectedMessages([]);
+      await loadMessages();
     } catch (error) {
+      console.error("Failed to approve messages:", error);
       toast.error("Failed to approve messages");
     }
   };
 
   const handleBatchReject = async () => {
+    if (selectedMessages.length === 0) return;
     try {
       await Promise.all(selectedMessages.map((id) => updateBirthdayMessage(id, { isApproved: false })));
       toast.success("Messages rejected");
       setSelectedMessages([]);
+      await loadMessages();
     } catch (error) {
+      console.error("Failed to reject messages:", error);
       toast.error("Failed to reject messages");
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedMessages.length === 0) return;
+
+    setIsLoading(true);
+    try {
+      const messagesToDelete = messages.filter((msg) => selectedMessages.includes(msg.id));
+
+      await Promise.all(messagesToDelete.map((msg) => deleteBirthdayMessage(msg.id, msg.videoUrl)));
+
+      toast.success("Messages deleted successfully");
+      setSelectedMessages([]);
+      setIsDeleteDialogOpen(false);
+      await loadMessages();
+    } catch (error) {
+      console.error("Failed to delete messages:", error);
+      toast.error("Failed to delete messages");
+      setIsDeleteDialogOpen(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,19 +135,51 @@ const AdminBirthdayMessages = () => {
       <div className="flex justify-between mb-4">
         <Input placeholder="Search by name" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         <div className="flex gap-2">
-          <Button onClick={handleBatchApprove} disabled={!selectedMessages.length}>
-            Approve Selected
+          <Button onClick={handleBatchApprove} disabled={!selectedMessages.length || isLoading}>
+            {isLoading ? "Processing..." : "Approve Selected"}
           </Button>
-          <Button onClick={handleBatchReject} disabled={!selectedMessages.length}>
-            Reject Selected
+          <Button onClick={handleBatchReject} disabled={!selectedMessages.length || isLoading} variant="secondary">
+            {isLoading ? "Processing..." : "Reject Selected"}
           </Button>
+          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={!selectedMessages.length || isLoading}>
+                {isLoading ? "Processing..." : "Delete Selected"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the selected
+                  {selectedMessages.length === 1 ? " message" : " messages"} and associated video file(s).
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleBatchDelete} disabled={isLoading}>
+                  {isLoading ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>
-              <Checkbox checked={selectedMessages.length === messages.length} onChange={handleSelectAll} />
+              <Checkbox
+                checked={selectedMessages.length > 0 && selectedMessages.length === paginatedMessages.length}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedMessages(paginatedMessages.map((msg) => msg.id));
+                  } else {
+                    setSelectedMessages([]);
+                  }
+                }}
+                aria-label="Select all messages on current page"
+              />
             </TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Message</TableHead>
@@ -107,26 +189,44 @@ const AdminBirthdayMessages = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedMessages.map((msg) => (
-            <TableRow key={msg.id}>
-              <TableCell>
-                <Checkbox checked={selectedMessages.includes(msg.id)} onChange={() => handleSelectMessage(msg.id)} />
-              </TableCell>
-              <TableCell>{msg.name}</TableCell>
-              <TableCell>{msg.message}</TableCell>
-              <TableCell>{new Date(msg.createdAt).toLocaleDateString()}</TableCell>
-              <TableCell>{msg.isApproved ? "Approved" : "Pending"}</TableCell>
-              <TableCell>
-                {msg.videoUrl ? (
-                  <div className="relative w-16 h-16 cursor-pointer">
-                    <video src={msg.videoUrl} className="absolute inset-0 w-full h-full object-cover" onClick={(e) => handlePictureInPicture(e.target)} />
-                  </div>
-                ) : (
-                  "Text"
-                )}
+          {isLoading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center">
+                Loading messages...
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            paginatedMessages.map((msg) => (
+              <TableRow key={msg.id}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedMessages.includes(msg.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedMessages((prev) => [...prev, msg.id]);
+                      } else {
+                        setSelectedMessages((prev) => prev.filter((id) => id !== msg.id));
+                      }
+                    }}
+                    aria-label={`Select message from ${msg.name}`}
+                  />
+                </TableCell>
+                <TableCell>{msg.name}</TableCell>
+                <TableCell>{msg.message}</TableCell>
+                <TableCell>{new Date(msg.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell>{msg.isApproved ? "Approved" : "Pending"}</TableCell>
+                <TableCell>
+                  {msg.videoUrl ? (
+                    <div className="relative w-16 h-16 cursor-pointer">
+                      <video src={msg.videoUrl} className="absolute inset-0 w-full h-full object-cover" onClick={(e) => handlePictureInPicture(e.target)} />
+                    </div>
+                  ) : (
+                    "Text"
+                  )}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
       <div className="flex justify-center mt-4">

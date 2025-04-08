@@ -1,6 +1,6 @@
 import { db, storage } from "@/lib/firebase";
-import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
 export interface BirthdayMessage {
   id?: string;
@@ -56,6 +56,29 @@ export const updateBirthdayMessage = async (messageId: string, updates: Partial<
     await updateDoc(messageRef, updates);
   } catch (error) {
     console.error("Error updating birthday message:", error);
+    throw error;
+  }
+};
+
+export const deleteBirthdayMessage = async (messageId: string, videoUrl: string): Promise<void> => {
+  try {
+    // 1. Delete Firestore document
+    const messageRef = doc(db, "birthday-messages", messageId);
+    await deleteDoc(messageRef);
+
+    // 2. Delete video file from Storage
+    if (videoUrl) {
+      try {
+        const videoRef = ref(storage, videoUrl); // Get ref from URL
+        await deleteObject(videoRef);
+      } catch (storageError) {
+        // Log storage deletion error but don't block overall success
+        console.warn(`Failed to delete video file ${videoUrl} for message ${messageId}:`, storageError);
+        // You might want more robust error handling/reporting here
+      }
+    }
+  } catch (error) {
+    console.error(`Error deleting birthday message ${messageId}:`, error);
     throw error;
   }
 };

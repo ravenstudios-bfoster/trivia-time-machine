@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { submitBirthdayMessage } from "@/functions/birthdayMessages";
 
-const BirthdayMessageForm = () => {
+const BirthdayMessageForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -60,6 +60,9 @@ const BirthdayMessageForm = () => {
       setName("");
       setMessage("");
       setVideoFile(null);
+
+      // Call onSuccess callback
+      onSuccess();
     } catch (error) {
       toast({
         title: "Error",
