@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { createCostume, uploadFile, type CostumeCategory } from "@/lib/firebase";
+import { createCostume, uploadFile } from "@/lib/firebase";
+import { CostumeCategory } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,22 +48,16 @@ export default function UserCostumeSubmission({ categories, onSuccess }: UserCos
     try {
       setIsLoading(true);
 
-      // Upload image to Firebase Storage
       const path = `costumes/${currentUser.uid}/${Date.now()}-${file.name}`;
       const photoUrl = await uploadFile(file, path);
 
-      // Create costume documents in Firestore for each selected category
-      await Promise.all(
-        selectedCategories.map((category) =>
-          createCostume({
-            characterName: characterName.trim(),
-            photoUrl,
-            submittedBy: currentUser.uid,
-            submitterName: currentUser.email || "Anonymous",
-            category,
-          })
-        )
-      );
+      await createCostume({
+        characterName: characterName.trim(),
+        photoUrl,
+        submittedBy: currentUser.uid,
+        submitterName: currentUser.email || "Anonymous",
+        categories: selectedCategories,
+      });
 
       toast.success("Costume submitted successfully!");
       setFile(null);

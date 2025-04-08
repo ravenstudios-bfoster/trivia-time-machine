@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getCostumes, getUserVotes, getCostumeCategories, type CostumeCategory } from "@/lib/firebase";
-import { Costume, Vote } from "@/types";
+import { getCostumes, getUserVotes, getCostumeCategories } from "@/lib/firebase";
+import { Costume, Vote, CostumeCategory } from "@/types";
 import CostumeCard from "@/components/CostumeCard";
 import UserCostumeSubmission from "@/components/UserCostumeSubmission";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,7 @@ export default function CostumeGallery() {
 
   const filteredCostumes = costumes.filter((costume) => {
     if (selectedCategories.has("all")) return true;
-    return selectedCategories.has(costume.category);
+    return Array.from(selectedCategories).some((selectedCat) => costume.categories?.includes(selectedCat));
   });
 
   return (

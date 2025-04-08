@@ -228,7 +228,7 @@ export interface Costume {
   photoUrl: string;
   submittedBy: string;
   submitterName: string;
-  category: string;
+  categories: string[];
   createdAt: Date;
   votes: {
     [key: string]: number;
@@ -263,4 +263,12 @@ export interface Prop {
   // Add timestamps if needed later
   // createdAt?: Timestamp;
   // updatedAt?: Timestamp;
+}
+
+export interface CostumeCategory {
+  id: string;
+  tag: string;
+  name: string;
+  description: string;
+  createdAt: Date;
 }

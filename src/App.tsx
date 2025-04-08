@@ -53,9 +53,10 @@ const SeedDatabase = lazy(() => import("./pages/admin/SeedDatabase"));
 const GameForm = lazy(() => import("./pages/admin/GameForm"));
 const QuestionForm = lazy(() => import("./pages/admin/QuestionForm"));
 const AdminBirthdayMessages = lazy(() => import("./pages/admin/BirthdayMessages"));
-const AdminProps = lazy(() => import("./pages/admin/Props"));
-const PropForm = lazy(() => import("./pages/admin/PropForm"));
+const AdminProps = lazy(() => import("@/pages/admin/Props"));
+const PropForm = lazy(() => import("@/pages/admin/PropForm"));
 const AdminCostumes = lazy(() => import("./pages/admin/Costumes"));
+const AdminCostumeCategories = lazy(() => import("./pages/admin/CostumeCategories"));
 
 const queryClient = new QueryClient();
 
@@ -124,6 +125,7 @@ const App = () => (
                 <Route path="/admin/props/new" element={<PropForm />} />
                 <Route path="/admin/props/:propId/edit" element={<PropForm />} />
                 <Route path="/admin/costumes" element={<AdminCostumes />} />
+                <Route path="/admin/costume-categories" element={<AdminCostumeCategories />} />
 
                 {/* Public Prop Routes */}
                 <Route path="/costume-voting" element={<CostumeGallery />} />

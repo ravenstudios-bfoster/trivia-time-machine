@@ -41,6 +41,7 @@ import {
   Costume,
   Vote,
   Prop,
+  CostumeCategory,
 } from "@/types";
 
 // Your web app's Firebase configuration
@@ -657,12 +658,17 @@ export const createOrUpdateUser = async (userData: UserData): Promise<void> => {
 // Costume functions
 export const createCostume = async (costumeData: Omit<Costume, "id" | "createdAt" | "votes">): Promise<string> => {
   try {
+    // Initialize votes object based on the costume's categories
+    const initialVotes: { [key: string]: number } = {};
+    if (costumeData.categories && Array.isArray(costumeData.categories)) {
+      costumeData.categories.forEach((catTag) => {
+        initialVotes[catTag] = 0;
+      });
+    }
+
     const newCostume = {
       ...costumeData,
-      votes: {
-        bestOverall: 0,
-        mostCreative: 0,
-      },
+      votes: initialVotes, // Use dynamically generated initial votes
       createdAt: Timestamp.now(),
     };
     const docRef = await addDoc(costumesCollection, newCostume);
@@ -745,25 +751,58 @@ export const getUserVotes = async (userId: string): Promise<Vote[]> => {
 };
 
 // Costume Category functions
-export interface CostumeCategory {
-  id: string;
-  tag: string;
-  name: string;
-  description: string;
-  createdAt: Date;
-}
-
 export const getCostumeCategories = async (): Promise<CostumeCategory[]> => {
   try {
     const snapshot = await getDocs(collection(db, "costumeCategory"));
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(), // Ensure createdAt is a Date
     })) as CostumeCategory[];
   } catch (error) {
     console.error("Error fetching costume categories:", error);
     return [];
+  }
+};
+
+export const createCostumeCategory = async (categoryData: Omit<CostumeCategory, "id" | "createdAt">): Promise<string> => {
+  try {
+    const categoriesRef = collection(db, "costumeCategory");
+    const newCategory = {
+      ...categoryData,
+      tag: categoryData.tag.toLowerCase().replace(/\s+/g, ""), // Ensure tag is lowercase and no spaces
+      createdAt: serverTimestamp(),
+    };
+    const docRef = await addDoc(categoriesRef, newCategory);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating costume category:", error);
+    throw new Error("Failed to create costume category");
+  }
+};
+
+export const updateCostumeCategory = async (categoryId: string, updates: Partial<CostumeCategory>): Promise<void> => {
+  try {
+    const categoryRef = doc(db, "costumeCategory", categoryId);
+    // Prevent tag from being updated
+    const { tag, ...validUpdates } = updates;
+    if (tag) {
+      console.warn("Attempted to update the 'tag' field of a category, which is not allowed.");
+    }
+    await updateDoc(categoryRef, validUpdates);
+  } catch (error) {
+    console.error("Error updating costume category:", error);
+    throw new Error("Failed to update costume category");
+  }
+};
+
+export const deleteCostumeCategory = async (categoryId: string): Promise<void> => {
+  try {
+    const categoryRef = doc(db, "costumeCategory", categoryId);
+    await deleteDoc(categoryRef);
+  } catch (error) {
+    console.error("Error deleting costume category:", error);
+    throw new Error("Failed to delete costume category");
   }
 };
 
@@ -840,8 +879,8 @@ export const deleteProp = async (propId: string): Promise<void> => {
   }
 };
 
-// Export Costume type
-export type { Costume };
-
 // Export Firebase instances and auth functions
 export { auth, db, storage, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence };
+
+// Export Costume type AGAIN - Ensure this line is present
+export type { Costume };

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { castVote, type CostumeCategory } from "@/lib/firebase";
-import { Costume, Vote } from "@/types";
+import { castVote } from "@/lib/firebase";
+import { Costume, Vote, CostumeCategory } from "@/types";
 import { toast } from "sonner";
 import CostumeEditForm from "./CostumeEditForm";
 
@@ -53,15 +53,8 @@ const CostumeCard = ({ costume, userVotes, categories, onVote }: CostumeCardProp
 
   const isSubmitter = currentUser?.uid === costume.submittedBy;
 
-  // Get the categories this costume belongs to
-  const costumeCategories = categories.filter(
-    (category) =>
-      // Check if the costume's category matches this category's tag
-      // or if the costume has votes in this category (for legacy data)
-      costume.category === category.tag ||
-      costume.category?.includes(category.tag) || // In case category is an array
-      (costume.votes && category.tag in costume.votes)
-  );
+  // Filter the main category list to only those this costume belongs to
+  const costumeCategories = categories.filter((category) => costume.categories?.includes(category.tag));
 
   return (
     <>
@@ -95,6 +88,7 @@ const CostumeCard = ({ costume, userVotes, categories, onVote }: CostumeCardProp
                 </Button>
               </div>
             ))}
+            {costumeCategories.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">This costume hasn't been assigned to any categories yet.</p>}
           </div>
 
           {isSubmitter && (
