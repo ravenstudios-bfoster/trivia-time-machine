@@ -55,6 +55,7 @@ const QuestionForm = lazy(() => import("./pages/admin/QuestionForm"));
 const AdminBirthdayMessages = lazy(() => import("./pages/admin/BirthdayMessages"));
 const AdminProps = lazy(() => import("./pages/admin/Props"));
 const PropForm = lazy(() => import("./pages/admin/PropForm"));
+const AdminCostumes = lazy(() => import("./pages/admin/Costumes"));
 
 const queryClient = new QueryClient();
 
@@ -122,6 +123,7 @@ const App = () => (
                 <Route path="/admin/props" element={<AdminProps />} />
                 <Route path="/admin/props/new" element={<PropForm />} />
                 <Route path="/admin/props/:propId/edit" element={<PropForm />} />
+                <Route path="/admin/costumes" element={<AdminCostumes />} />
 
                 {/* Public Prop Routes */}
                 <Route path="/costume-voting" element={<CostumeGallery />} />

@@ -682,6 +682,26 @@ export const getCostumes = async (): Promise<Costume[]> => {
   })) as Costume[];
 };
 
+export const updateCostume = async (costumeId: string, updates: Partial<Costume>): Promise<void> => {
+  try {
+    const costumeRef = doc(db, "costumes", costumeId);
+    await updateDoc(costumeRef, updates);
+  } catch (error) {
+    console.error("Error updating costume:", error);
+    throw new Error("Failed to update costume");
+  }
+};
+
+export const deleteCostume = async (costumeId: string): Promise<void> => {
+  try {
+    const costumeRef = doc(db, "costumes", costumeId);
+    await deleteDoc(costumeRef);
+  } catch (error) {
+    console.error("Error deleting costume:", error);
+    throw new Error("Failed to delete costume");
+  }
+};
+
 export const castVote = async (userId: string, costumeId: string, category: string): Promise<void> => {
   try {
     const voteRef = doc(collection(db, "votes"));
@@ -722,19 +742,6 @@ export const getUserVotes = async (userId: string): Promise<Vote[]> => {
     ...doc.data(),
     timestamp: doc.data().timestamp.toDate(),
   })) as Vote[];
-};
-
-export const updateCostume = async (costumeId: string, updates: Partial<Costume>) => {
-  try {
-    const costumeRef = doc(db, "costumes", costumeId);
-    await updateDoc(costumeRef, {
-      ...updates,
-      updatedAt: new Date(),
-    });
-  } catch (error) {
-    console.error("Error updating costume:", error);
-    throw error;
-  }
 };
 
 // Costume Category functions
@@ -832,6 +839,9 @@ export const deleteProp = async (propId: string): Promise<void> => {
     throw new Error("Failed to delete prop");
   }
 };
+
+// Export Costume type
+export type { Costume };
 
 // Export Firebase instances and auth functions
 export { auth, db, storage, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence };
