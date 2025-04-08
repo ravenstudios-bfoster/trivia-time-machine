@@ -21,7 +21,7 @@ import {
   DocumentReference,
   CollectionReference,
 } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   Game,
   Question,
@@ -38,9 +38,9 @@ import {
   GameAnalytics,
   QuestionStat,
   AccessCode,
-  Answer,
   Costume,
   Vote,
+  Prop,
 } from "@/types";
 
 // Your web app's Firebase configuration
@@ -74,6 +74,8 @@ export const accessCodesCollection = collection(db, "accessCodes");
 export const costumesCollection = collection(db, "costumes");
 export const votesCollection = collection(db, "votes");
 export const usersCollection = collection(db, "users");
+export const birthdayMessagesCollection = collection(db, "birthday-messages");
+export const propsCollection = collection(db, "props") as CollectionReference<Omit<Prop, "id">>;
 
 // Authentication functions
 export const loginWithEmail = async (email: string, password: string) => {
@@ -535,9 +537,6 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
   try {
     const metadata = {
       contentType: file.type,
-      customMetadata: {
-        "Cross-Origin-Resource-Policy": "cross-origin",
-      },
     };
     const storageRef = ref(storage, path);
     const snapshot = await uploadBytes(storageRef, file, metadata);
@@ -545,6 +544,31 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
   } catch (error) {
     console.error("Error uploading file:", error);
     throw new Error("Failed to upload file");
+  }
+};
+
+// Function to delete a file from Firebase Storage, handling potential errors
+export const deleteFileFromStorage = async (filePathOrUrl: string): Promise<void> => {
+  if (!filePathOrUrl) return; // Nothing to delete
+
+  try {
+    // Check if it's a URL or a path
+    let fileRef;
+    if (filePathOrUrl.startsWith("http")) {
+      fileRef = ref(storage, filePathOrUrl); // Get ref from URL
+    } else {
+      fileRef = ref(storage, filePathOrUrl); // Assume it's a path
+    }
+    await deleteObject(fileRef);
+    console.log("Successfully deleted file from Storage:", filePathOrUrl);
+  } catch (error: any) {
+    if (error.code === "storage/object-not-found") {
+      console.warn("File not found in Storage, skipping deletion:", filePathOrUrl);
+    } else {
+      console.error("Error deleting file from Storage:", filePathOrUrl, error);
+      // Decide if you want to re-throw or just log the error
+      // throw new Error("Failed to delete file from Storage");
+    }
   }
 };
 
@@ -733,6 +757,79 @@ export const getCostumeCategories = async (): Promise<CostumeCategory[]> => {
   } catch (error) {
     console.error("Error fetching costume categories:", error);
     return [];
+  }
+};
+
+// Prop functions
+export const getProps = async (): Promise<Prop[]> => {
+  try {
+    const propsQuery = query(propsCollection, orderBy("title"));
+    const snapshot = await getDocs(propsQuery);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Prop));
+  } catch (error) {
+    console.error("Error fetching props:", error);
+    throw new Error("Failed to fetch props");
+  }
+};
+
+export const getProp = async (propId: string): Promise<Prop | null> => {
+  try {
+    const docRef = doc(propsCollection, propId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as Prop;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching prop:", error);
+    throw new Error("Failed to fetch prop");
+  }
+};
+
+// Use setDoc with propId as the document ID for better control
+export const createProp = async (propData: Prop): Promise<void> => {
+  try {
+    const propRef = doc(propsCollection, propData.id);
+    // Ensure we don't try to write the id field itself into the document data
+    const { id, ...dataToSave } = propData;
+    await setDoc(propRef, dataToSave);
+  } catch (error) {
+    console.error("Error creating prop:", error);
+    throw new Error("Failed to create prop");
+  }
+};
+
+export const updateProp = async (propId: string, propData: Partial<Omit<Prop, "id">>): Promise<void> => {
+  try {
+    const propRef = doc(propsCollection, propId);
+    await updateDoc(propRef, propData);
+  } catch (error) {
+    console.error("Error updating prop:", error);
+    throw new Error("Failed to update prop");
+  }
+};
+
+export const deleteProp = async (propId: string): Promise<void> => {
+  try {
+    const propRef = doc(propsCollection, propId);
+    // Get the prop data first to find the image URL for deletion
+    const propDoc = await getDoc(propRef);
+    if (propDoc.exists()) {
+      const propData = { id: propDoc.id, ...propDoc.data() } as Prop; // Construct full Prop object
+      // Delete the Firestore document
+      await deleteDoc(propRef);
+      // If an image URL exists, attempt to delete the image from Storage
+      // Ensure we're using a valid URL or path
+      if (propData.imageUrl && typeof propData.imageUrl === "string") {
+        await deleteFileFromStorage(propData.imageUrl);
+      }
+    } else {
+      console.warn(`Prop with ID ${propId} not found for deletion.`);
+    }
+  } catch (error) {
+    console.error("Error deleting prop:", error);
+    throw new Error("Failed to delete prop");
   }
 };
 

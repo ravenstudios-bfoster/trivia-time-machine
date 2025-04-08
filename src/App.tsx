@@ -53,6 +53,8 @@ const SeedDatabase = lazy(() => import("./pages/admin/SeedDatabase"));
 const GameForm = lazy(() => import("./pages/admin/GameForm"));
 const QuestionForm = lazy(() => import("./pages/admin/QuestionForm"));
 const AdminBirthdayMessages = lazy(() => import("./pages/admin/BirthdayMessages"));
+const AdminProps = lazy(() => import("./pages/admin/Props"));
+const PropForm = lazy(() => import("./pages/admin/PropForm"));
 
 const queryClient = new QueryClient();
 
@@ -117,8 +119,11 @@ const App = () => (
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/seed" element={<SeedDatabase />} />
                 <Route path="/admin/birthday-messages" element={<AdminBirthdayMessages />} />
+                <Route path="/admin/props" element={<AdminProps />} />
+                <Route path="/admin/props/new" element={<PropForm />} />
+                <Route path="/admin/props/:propId/edit" element={<PropForm />} />
 
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                {/* Public Prop Routes */}
                 <Route path="/costume-voting" element={<CostumeGallery />} />
                 <Route path="/props-and-memorabilia" element={<PropsAndMemorabilia />} />
                 <Route path="/props/:id" element={<PropDetail />} />

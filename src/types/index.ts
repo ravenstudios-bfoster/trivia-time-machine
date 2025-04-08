@@ -248,3 +248,19 @@ export interface CostumeSubmission {
   characterName: string;
   submittedBy: string;
 }
+
+// Prop & Memorabilia Type
+export interface Prop {
+  id: string; // Use the unique ID entered by the admin (e.g., "flux-capacitor")
+  title: string;
+  imageUrl: string; // URL to the image (either provided URL or from Storage upload)
+  videoUrl?: string; // Optional URL for a video (e.g., YouTube embed)
+  description: string;
+  movie: string;
+  backstory: string;
+  funFact?: string;
+  year: number;
+  // Add timestamps if needed later
+  // createdAt?: Timestamp;
+  // updatedAt?: Timestamp;
+}
