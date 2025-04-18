@@ -253,9 +253,9 @@
 /* Present Time Display - Each digit is independent */
 .present-time {
   position: absolute;
-  top: 42.5%;
+  top: 41.5%;
   left: 0;
-  right: 0;
+  right: 10;
   height: 80px;
 }
 
@@ -282,25 +282,27 @@
 .present-time .digit-year {
   position: relative;
   width: 170px;
-  margin-left: 36px;
+  margin-left: 15px;
 }
 
 .present-time .digit-hour {
   position: relative;
   width: 280px;
+  margin-left: -5px;
 }
 
 .present-time .digit-minute {
   position: relative;
   width: 100px;
+  margin-left: -40px;
 }
 
 /* Time Remaining Display - Each digit is independent */
 .time-remaining {
   position: absolute;
-  top: 69%;
+  top: 74%;
   left: 0;
-  right: 0;
+  right: 21%;
   height: 80px;
 }
 
@@ -322,25 +324,25 @@
 .time-remaining .digit:nth-child(2) {
   position: relative;
   width: 80px;
-  margin-left: 45px; /* Space after months */
+  margin-left: 85px; /* Space after months */
 }
 
 .time-remaining .digit:nth-child(3) {
   position: relative;
   width: 80px;
-  margin-left: 45px; /* Space after weeks */
+  margin-left: 88px; /* Space after weeks */
 }
 
 .time-remaining .digit:nth-child(4) {
   position: relative;
   width: 80px;
-  margin-left: 45px; /* Space after days */
+  margin-left: 110px; /* Space after days */
 }
 
 .time-remaining .digit:nth-child(5) {
   position: relative;
   width: 80px;
-  margin-left: 45px; /* Space after hours */
+  margin-left: 90px; /* Space after hours */
 }
 
 /* LED Colors */

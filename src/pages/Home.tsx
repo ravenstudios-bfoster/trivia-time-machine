@@ -5,7 +5,7 @@ const Home = () => {
   return (
     <Layout className="min-h-screen bg-background bttf-grid">
       <div className="container mx-auto px-4 py-8 text-center flex flex-col justify-center min-h-screen">
-        <h1 className="text-4xl font-bold text-primary mb-4">Tom's 50th Birthday Challenge</h1>
+        <h1 className="text-4xl font-bold text-primary mb-4">Tom's 50th: The Birthday Paradox</h1>
         <div className="mt-20">
           <TimeCircuitDisplay />
         </div>

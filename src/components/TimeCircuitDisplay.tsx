@@ -40,12 +40,46 @@ const TimeCircuitDisplay = () => {
   };
 
   const calculateTimeRemaining = (target: Date, current: Date) => {
+    // Ensure we're working with positive differences
+    if (target < current) {
+      return {
+        months: "00",
+        weeks: "00",
+        days: "00",
+        hours: "00",
+        minutes: "00",
+      };
+    }
+
+    // Calculate total differences
+    const remainingMonths = differenceInMonths(target, current);
+
+    // Adjust the date by removing months to calculate remaining weeks
+    const afterMonths = new Date(current);
+    afterMonths.setMonth(afterMonths.getMonth() + remainingMonths);
+    const remainingWeeks = Math.floor(differenceInDays(target, afterMonths) / 7);
+
+    // Adjust the date by removing weeks to calculate remaining days
+    const afterWeeks = new Date(afterMonths);
+    afterWeeks.setDate(afterWeeks.getDate() + remainingWeeks * 7);
+    const remainingDays = differenceInDays(target, afterWeeks);
+
+    // Adjust the date by removing days to calculate remaining hours
+    const afterDays = new Date(afterWeeks);
+    afterDays.setDate(afterDays.getDate() + remainingDays);
+    const remainingHours = differenceInHours(target, afterDays);
+
+    // Adjust the date by removing hours to calculate remaining minutes
+    const afterHours = new Date(afterDays);
+    afterHours.setHours(afterHours.getHours() + remainingHours);
+    const remainingMinutes = differenceInMinutes(target, afterHours);
+
     return {
-      months: String(Math.max(0, differenceInMonths(target, current))).padStart(2, "0"),
-      weeks: String(Math.max(0, differenceInWeeks(target, current) % 4)).padStart(2, "0"),
-      days: String(Math.max(0, differenceInDays(target, current) % 7)).padStart(2, "0"),
-      hours: String(Math.max(0, differenceInHours(target, current) % 24)).padStart(2, "0"),
-      minutes: String(Math.max(0, differenceInMinutes(target, current) % 60)).padStart(2, "0"),
+      months: String(remainingMonths).padStart(2, "0"),
+      weeks: String(remainingWeeks).padStart(2, "0"),
+      days: String(remainingDays).padStart(2, "0"),
+      hours: String(remainingHours).padStart(2, "0"),
+      minutes: String(remainingMinutes).padStart(2, "0"),
     };
   };
 

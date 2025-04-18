@@ -29,7 +29,7 @@ const Layout = ({ children, showHeader = true, showFooter = true, transparentHea
       {showFooter && (
         <footer className="py-4 border-t border-muted">
           <div className="container text-center text-sm text-muted-foreground">
-            <p>© 2025 BTTF Trivia - Created for Tom's 50th Birthday</p>
+            <p>© 2025 Tom's 50th: The Birthday Paradox</p>
           </div>
         </footer>
       )}
