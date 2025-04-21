@@ -42,6 +42,7 @@ import {
   Vote,
   Prop,
   CostumeCategory,
+  VotingWindow,
 } from "@/types";
 
 // Your web app's Firebase configuration
@@ -884,3 +885,18 @@ export { auth, db, storage, createUserWithEmailAndPassword, signInWithEmailAndPa
 
 // Export Costume type AGAIN - Ensure this line is present
 export type { Costume };
+
+export const getVotingWindow = async (): Promise<VotingWindow> => {
+  const docRef = doc(db, "config", "votingWindow");
+  const docSnap = await getDoc(docRef);
+
+  if (!docSnap.exists()) {
+    return {
+      startTime: "19:00",
+      endTime: "19:45",
+      message: "Voting will open at {time}",
+    };
+  }
+
+  return docSnap.data() as VotingWindow;
+};

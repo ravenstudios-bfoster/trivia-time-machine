@@ -1,23 +1,71 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { castVote } from "@/lib/firebase";
-import { Costume, Vote, CostumeCategory } from "@/types";
+import { castVote, getVotingWindow } from "@/lib/firebase";
+import { Costume, Vote, CostumeCategory, VotingWindow } from "@/types";
 import { toast } from "sonner";
 import CostumeEditForm from "./CostumeEditForm";
+import { format } from "date-fns";
 
 interface CostumeCardProps {
   costume: Costume;
   userVotes: Vote[];
   categories: CostumeCategory[];
   onVote: () => void;
+  isVotingEnabled: boolean;
 }
 
-const CostumeCard = ({ costume, userVotes, categories, onVote }: CostumeCardProps) => {
+const CostumeCard = ({ costume, userVotes, categories, onVote, isVotingEnabled }: CostumeCardProps) => {
   const { currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState<{ [key: string]: boolean }>({});
   const [isEditing, setIsEditing] = useState(false);
+  const [votingWindow, setVotingWindow] = useState<VotingWindow | null>(null);
+  const [isVotingOpen, setIsVotingOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchVotingWindow = async () => {
+      try {
+        const window = await getVotingWindow();
+        setVotingWindow(window);
+      } catch (error) {
+        console.error("Error fetching voting window:", error);
+      }
+    };
+
+    fetchVotingWindow();
+  }, []);
+
+  useEffect(() => {
+    if (!votingWindow) return;
+
+    const checkVotingWindow = () => {
+      const now = new Date();
+
+      if (votingWindow.startDateTime && votingWindow.endDateTime) {
+        // New format with full date-time
+        const startTime = votingWindow.startDateTime.toDate();
+        const endTime = votingWindow.endDateTime.toDate();
+        setIsVotingOpen(now >= startTime && now <= endTime);
+      } else if (votingWindow.startTime && votingWindow.endTime) {
+        // Old format with just times
+        const [startHour, startMinute] = votingWindow.startTime.split(":").map(Number);
+        const [endHour, endMinute] = votingWindow.endTime.split(":").map(Number);
+
+        const startTime = new Date();
+        startTime.setHours(startHour, startMinute, 0, 0);
+
+        const endTime = new Date();
+        endTime.setHours(endHour, endMinute, 0, 0);
+
+        setIsVotingOpen(now >= startTime && now <= endTime);
+      }
+    };
+
+    checkVotingWindow();
+    const interval = setInterval(checkVotingWindow, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [votingWindow]);
 
   const hasVotedFor = (categoryTag: string) => {
     return userVotes.some((vote) => vote.category === categoryTag && vote.costumeId === costume.id);
@@ -26,6 +74,11 @@ const CostumeCard = ({ costume, userVotes, categories, onVote }: CostumeCardProp
   const handleVote = async (categoryTag: string) => {
     if (!currentUser) {
       toast.error("Please sign in to vote");
+      return;
+    }
+
+    if (!isVotingEnabled) {
+      toast.error("Voting is not currently open");
       return;
     }
 
@@ -83,7 +136,7 @@ const CostumeCard = ({ costume, userVotes, categories, onVote }: CostumeCardProp
                   <p className="text-xs text-muted-foreground">{category.description}</p>
                   <span className="text-sm text-muted-foreground">Votes: {costume.votes[category.tag] || 0}</span>
                 </div>
-                <Button variant="outline" size="sm" disabled={!currentUser || hasVotedFor(category.tag) || isLoading[category.tag]} onClick={() => handleVote(category.tag)}>
+                <Button variant="outline" size="sm" disabled={!currentUser || hasVotedFor(category.tag) || isLoading[category.tag] || !isVotingOpen} onClick={() => handleVote(category.tag)}>
                   {isLoading[category.tag] ? "Voting..." : hasVotedFor(category.tag) ? "Voted" : "Vote"}
                 </Button>
               </div>

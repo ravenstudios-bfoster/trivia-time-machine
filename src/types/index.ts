@@ -274,3 +274,17 @@ export interface CostumeCategory {
   description: string;
   createdAt: Date;
 }
+
+export interface VotingWindow {
+  // New format with full date-time
+  startDateTime?: Timestamp;
+  endDateTime?: Timestamp;
+  // Old format with separate date and time
+  startDate?: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
+  // Common fields
+  message: string;
+  updatedAt?: Timestamp;
+}

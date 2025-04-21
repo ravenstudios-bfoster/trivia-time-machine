@@ -1,16 +1,48 @@
 import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "@/components/AdminLayout";
-import { getCostumes, getCostumeCategories, deleteCostume, updateCostume, type Costume } from "@/lib/firebase";
-import { CostumeCategory } from "@/types";
+import { getCostumes, getCostumeCategories, deleteCostume, updateCostume, type Costume, getVotingWindow } from "@/lib/firebase";
+import { CostumeCategory, VotingWindow } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { MoreHorizontal, Trash2, RotateCcw, Edit, Loader2 } from "lucide-react";
-import { format, isValid } from "date-fns";
+import { MoreHorizontal, Trash2, RotateCcw, Edit, Loader2, Clock } from "lucide-react";
+import { format, isValid, parse, parseISO } from "date-fns";
+import { doc, updateDoc, serverTimestamp, Timestamp, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+// Helper function to get today's date in YYYY-MM-DD format
+const getTodayDate = () => format(new Date(), "yyyy-MM-dd");
+
+// Helper function to format date and time for display
+const formatDateTime = (date: Date): string => {
+  return format(date, "MMMM d, yyyy 'at' h:mm a");
+};
+
+// Helper function to combine date and time strings into a Date object
+const combineDateAndTime = (dateStr: string, timeStr: string): Date => {
+  // Parse the date string to ensure consistent handling
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [hours, minutes] = timeStr.split(":").map(Number);
+
+  // Create a new date with the exact components to avoid timezone issues
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  return date;
+};
+
+// Helper function to format date for input control
+const formatDateForInput = (date: Date): string => {
+  return format(date, "yyyy-MM-dd");
+};
+
+// Helper function to format time for input control
+const formatTimeForInput = (date: Date): string => {
+  return format(date, "HH:mm");
+};
 
 const AdminCostumes = () => {
   const [costumes, setCostumes] = useState<Costume[]>([]);
@@ -26,13 +58,49 @@ const AdminCostumes = () => {
   const [costumeToEditCategories, setCostumeToEditCategories] = useState<Costume | null>(null);
   const [editedCategories, setEditedCategories] = useState<string[]>([]);
 
+  // Voting window state with separate date and time
+  const [votingWindow, setVotingWindow] = useState<VotingWindow>({
+    startDate: getTodayDate(),
+    startTime: "19:00",
+    endDate: getTodayDate(),
+    endTime: "19:45",
+    message: "Voting will open at {time}",
+  });
+  const [isEditingVotingWindow, setIsEditingVotingWindow] = useState(false);
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [costumesData, categoriesData] = await Promise.all([getCostumes(), getCostumeCategories()]);
+      const [costumesData, categoriesData, votingWindowData] = await Promise.all([getCostumes(), getCostumeCategories(), getVotingWindow()]);
       setCostumes(costumesData);
       setCategories(categoriesData);
+
+      if (votingWindowData) {
+        if (votingWindowData.startDateTime && votingWindowData.endDateTime) {
+          // Convert Firebase Timestamp to local Date
+          const startDateTime = votingWindowData.startDateTime.toDate();
+          const endDateTime = votingWindowData.endDateTime.toDate();
+
+          setVotingWindow({
+            startDate: format(startDateTime, "yyyy-MM-dd"),
+            startTime: format(startDateTime, "HH:mm"),
+            endDate: format(endDateTime, "yyyy-MM-dd"),
+            endTime: format(endDateTime, "HH:mm"),
+            message: votingWindowData.message,
+          });
+        } else if (votingWindowData.startTime && votingWindowData.endTime) {
+          // Old format with just times
+          const today = getTodayDate();
+          setVotingWindow({
+            startDate: today,
+            startTime: votingWindowData.startTime,
+            endDate: today,
+            endTime: votingWindowData.endTime,
+            message: votingWindowData.message,
+          });
+        }
+      }
     } catch (err) {
       console.error("Error fetching data:", err);
       setError("Failed to load data. Please try again.");
@@ -45,6 +113,22 @@ const AdminCostumes = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Add an effect to ensure consistent date/time display
+  useEffect(() => {
+    if (votingWindow.startDate && votingWindow.startTime) {
+      const startDateTime = combineDateAndTime(votingWindow.startDate, votingWindow.startTime);
+      const endDateTime = combineDateAndTime(votingWindow.endDate, votingWindow.endTime);
+
+      setVotingWindow((prev) => ({
+        ...prev,
+        startDate: formatDateForInput(startDateTime),
+        startTime: formatTimeForInput(startDateTime),
+        endDate: formatDateForInput(endDateTime),
+        endTime: formatTimeForInput(endDateTime),
+      }));
+    }
+  }, []);
 
   const handleDelete = async () => {
     if (!costumeToDelete) return;
@@ -135,8 +219,74 @@ const AdminCostumes = () => {
     return categories.find((cat) => cat.tag === tag)?.name || tag;
   };
 
+  const handleSaveVotingWindow = async () => {
+    try {
+      const startDateTime = combineDateAndTime(votingWindow.startDate, votingWindow.startTime);
+      const endDateTime = combineDateAndTime(votingWindow.endDate, votingWindow.endTime);
+
+      // Validate that end time is after start time
+      if (endDateTime <= startDateTime) {
+        toast.error("End time must be after start time");
+        return;
+      }
+
+      // Create Firebase Timestamps from the dates
+      const startTimestamp = Timestamp.fromDate(startDateTime);
+      const endTimestamp = Timestamp.fromDate(endDateTime);
+
+      const votingWindowRef = doc(db, "config", "votingWindow");
+      await setDoc(votingWindowRef, {
+        startDateTime: startTimestamp,
+        endDateTime: endTimestamp,
+        message: votingWindow.message,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Update the local state with the exact same dates we're saving
+      setVotingWindow((prev) => ({
+        ...prev,
+        startDate: formatDateForInput(startDateTime),
+        startTime: formatTimeForInput(startDateTime),
+        endDate: formatDateForInput(endDateTime),
+        endTime: formatTimeForInput(endDateTime),
+      }));
+
+      toast.success("Voting window updated successfully");
+      setIsEditingVotingWindow(false);
+    } catch (err) {
+      console.error("Error updating voting window:", err);
+      toast.error("Failed to update voting window");
+    }
+  };
+
   return (
     <AdminLayout title="Manage Costumes" subtitle="View, delete costumes, and manage votes." breadcrumbs={[{ label: "Costumes", href: "/admin/costumes" }]}>
+      <div className="mb-6 p-4 bg-[#222] rounded-md border border-[#333]">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-[#ccc]" />
+            <h3 className="text-lg font-semibold text-[#ccc]">Voting Window</h3>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setIsEditingVotingWindow(true)}>
+            Edit Window
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="text-[#666]">Start</p>
+            <p className="text-[#ccc]">{formatDateTime(combineDateAndTime(votingWindow.startDate, votingWindow.startTime))}</p>
+          </div>
+          <div>
+            <p className="text-[#666]">End</p>
+            <p className="text-[#ccc]">{formatDateTime(combineDateAndTime(votingWindow.endDate, votingWindow.endTime))}</p>
+          </div>
+          <div>
+            <p className="text-[#666]">Message</p>
+            <p className="text-[#ccc]">{votingWindow.message}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-md border border-[#333] bg-[#111]">
         <Table>
           <TableHeader>
@@ -281,6 +431,96 @@ const AdminCostumes = () => {
               {isProcessing === `edit_cat_${costumeToEditCategories?.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Save Categories
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditingVotingWindow} onOpenChange={setIsEditingVotingWindow}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Voting Window</DialogTitle>
+            <DialogDescription>Configure when voting is allowed and the message shown when voting is closed.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Start Date and Time</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Input
+                    type="date"
+                    value={votingWindow.startDate}
+                    onChange={(e) => {
+                      setVotingWindow((prev) => ({
+                        ...prev,
+                        startDate: e.target.value,
+                      }));
+                    }}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Input
+                    type="time"
+                    value={votingWindow.startTime}
+                    onChange={(e) => {
+                      setVotingWindow((prev) => ({
+                        ...prev,
+                        startTime: e.target.value,
+                      }));
+                    }}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>End Date and Time</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Input
+                    type="date"
+                    value={votingWindow.endDate}
+                    onChange={(e) => {
+                      setVotingWindow((prev) => ({
+                        ...prev,
+                        endDate: e.target.value,
+                      }));
+                    }}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Input
+                    type="time"
+                    value={votingWindow.endTime}
+                    onChange={(e) => {
+                      setVotingWindow((prev) => ({
+                        ...prev,
+                        endTime: e.target.value,
+                      }));
+                    }}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="message">Message (use {"{time}"} for the start time)</Label>
+              <Input id="message" value={votingWindow.message} onChange={(e) => setVotingWindow((prev) => ({ ...prev, message: e.target.value }))} placeholder="Voting will open at {time}" />
+            </div>
+            <div className="rounded-md bg-secondary p-4">
+              <p className="text-sm font-medium mb-2">Summary</p>
+              <p className="text-sm text-muted-foreground">
+                Voting will be open from {format(combineDateAndTime(votingWindow.startDate, votingWindow.startTime), "MMMM d, yyyy 'at' h:mm a")} until{" "}
+                {format(combineDateAndTime(votingWindow.endDate, votingWindow.endTime), "h:mm a")}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditingVotingWindow(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveVotingWindow}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

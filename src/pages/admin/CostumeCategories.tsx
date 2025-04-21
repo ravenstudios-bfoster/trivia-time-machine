@@ -64,7 +64,8 @@ const AdminCostumeCategories = () => {
       return;
     }
 
-    const generatedTag = currentCategory.name.trim().toLowerCase().replace(/\s+/g, "");
+    const generatedTag = generateSafeTag(currentCategory.name);
+
     if (!generatedTag) {
       toast.error("Cannot generate a valid tag from the provided name.");
       return;
@@ -78,6 +79,16 @@ const AdminCostumeCategories = () => {
     setIsProcessing(categoryData.id || "new");
     try {
       if (isEditing && categoryData.id) {
+        // When editing, check if any costumes are using the old tag
+        const costumes = await getCostumes();
+        const costumesUsingOldTag = costumes.filter((costume) => costume.categories?.includes(currentCategory.tag || ""));
+
+        if (costumesUsingOldTag.length > 0 && currentCategory.tag !== generatedTag) {
+          toast.error("Cannot change category tag while it is assigned to costumes.");
+          setIsProcessing(null);
+          return;
+        }
+
         await updateCostumeCategory(categoryData.id, categoryData as CostumeCategory);
         toast.success(`Category "${categoryData.name}" updated successfully.`);
       } else {
@@ -112,7 +123,7 @@ const AdminCostumeCategories = () => {
     setIsProcessing(categoryToDelete.id);
     try {
       const costumes = await getCostumes();
-      const isCategoryInUse = costumes.some((costume) => costume.category === categoryToDelete.tag);
+      const isCategoryInUse = costumes.some((costume) => costume.categories?.includes(categoryToDelete.tag));
 
       if (isCategoryInUse) {
         toast.error(`Cannot delete category "${categoryToDelete.name}" because it is currently assigned to one or more costumes.`);
@@ -132,6 +143,15 @@ const AdminCostumeCategories = () => {
     } finally {
       setIsProcessing(null);
     }
+  };
+
+  // Helper function to generate Firestore-safe tag
+  const generateSafeTag = (name: string): string => {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "_") // Replace any non-alphanumeric chars with underscore
+      .replace(/^_+|_+$/g, ""); // Remove leading/trailing underscores
   };
 
   return (
