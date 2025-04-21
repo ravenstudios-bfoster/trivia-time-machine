@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Prop } from "@/types"; // Use Prop type from @/types
-import { getProp, createProp, updateProp, deleteFileFromStorage } from "@/lib/firebase"; // Import Firebase functions
+import { getProp, createProp, updateProp, deleteFileFromStorage, uploadFile } from "@/lib/firebase"; // Import Firebase functions
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react"; // Added Loader2
 
@@ -32,6 +32,8 @@ const propSchema = z.object({
     .int()
     .min(1900, "Year must be after 1900")
     .max(new Date().getFullYear() + 10, "Year seems too far in the future"),
+  externalLink: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  sortOrder: z.number({ invalid_type_error: "Sort order must be a number" }).int().min(0, "Sort order must be 0 or greater"),
 });
 
 type PropFormData = z.infer<typeof propSchema>;
@@ -42,13 +44,18 @@ const PropForm = () => {
   const isEditing = Boolean(propId);
   const [currentProp, setCurrentProp] = useState<Prop | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(isEditing);
+  const [isUploading, setIsUploading] = useState(false);
+  const imageFileRef = useRef<HTMLInputElement>(null);
+  const videoFileRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PropFormData>({
     resolver: zodResolver(propSchema),
@@ -62,11 +69,14 @@ const PropForm = () => {
       backstory: "",
       funFact: "",
       year: new Date().getFullYear(),
+      externalLink: "",
+      sortOrder: 0,
     },
   });
 
   // Watch for changes URL input to update preview
   const watchedImageUrl = watch("imageUrl");
+  const watchedVideoUrl = watch("videoUrl");
 
   useEffect(() => {
     if (watchedImageUrl) {
@@ -82,6 +92,20 @@ const PropForm = () => {
     }
   }, [watchedImageUrl, currentProp]);
 
+  useEffect(() => {
+    if (watchedVideoUrl) {
+      if (watchedVideoUrl.startsWith("http") || watchedVideoUrl.startsWith("/")) {
+        setVideoPreviewUrl(watchedVideoUrl);
+      } else {
+        setVideoPreviewUrl(null);
+      }
+    } else if (currentProp?.videoUrl) {
+      setVideoPreviewUrl(currentProp.videoUrl);
+    } else {
+      setVideoPreviewUrl(null);
+    }
+  }, [watchedVideoUrl, currentProp]);
+
   // Fetch prop data when editing
   useEffect(() => {
     if (isEditing && propId) {
@@ -93,6 +117,7 @@ const PropForm = () => {
             setCurrentProp(propData);
             reset(propData);
             setImagePreviewUrl(propData.imageUrl || null);
+            setVideoPreviewUrl(propData.videoUrl || null);
           } else {
             toast.error("Prop not found.");
             navigate("/admin/props");
@@ -109,9 +134,73 @@ const PropForm = () => {
     }
   }, [isEditing, propId, reset, navigate]);
 
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image file size must be less than 5MB");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const storagePath = `props/images/${Date.now()}-${file.name}`;
+      const imageUrl = await uploadFile(file, storagePath);
+      setValue("imageUrl", imageUrl);
+      setImagePreviewUrl(imageUrl);
+      toast.success("Image uploaded successfully");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleVideoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please upload a video file");
+      return;
+    }
+
+    // Validate file size (100MB limit)
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error("Video file size must be less than 100MB");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const storagePath = `props/videos/${Date.now()}-${file.name}`;
+      const videoUrl = await uploadFile(file, storagePath);
+      setValue("videoUrl", videoUrl);
+      setVideoPreviewUrl(videoUrl);
+      toast.success("Video uploaded successfully");
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      toast.error("Failed to upload video");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const onSubmit: SubmitHandler<PropFormData> = async (data) => {
     const finalImageUrl = data.imageUrl;
+    const finalVideoUrl = data.videoUrl;
     const originalImageUrl = currentProp?.imageUrl;
+    const originalVideoUrl = currentProp?.videoUrl;
 
     if (!finalImageUrl) {
       toast.error("Image URL is required.");
@@ -119,28 +208,33 @@ const PropForm = () => {
     }
 
     try {
-      if (isEditing && originalImageUrl && originalImageUrl !== finalImageUrl) {
-        console.log(`Image URL changed. Deleting old image from storage: ${originalImageUrl}`);
-        await deleteFileFromStorage(originalImageUrl);
+      // Delete old files if they've changed
+      if (isEditing) {
+        if (originalImageUrl && originalImageUrl !== finalImageUrl) {
+          await deleteFileFromStorage(originalImageUrl);
+        }
+        if (originalVideoUrl && originalVideoUrl !== finalVideoUrl) {
+          await deleteFileFromStorage(originalVideoUrl);
+        }
       }
 
       const propDataToSave: Omit<Prop, "id"> = {
         title: data.title,
         imageUrl: finalImageUrl,
-        videoUrl: data.videoUrl || "",
+        videoUrl: finalVideoUrl || "",
         description: data.description,
         movie: data.movie,
         backstory: data.backstory,
         funFact: data.funFact || "",
         year: data.year,
+        externalLink: data.externalLink || "",
+        sortOrder: data.sortOrder,
       };
 
       if (isEditing && propId) {
-        console.log("Updating prop in Firestore:", propId);
         await updateProp(propId, propDataToSave);
         toast.success(`Prop '${data.title}' updated successfully.`);
       } else {
-        console.log("Creating new prop in Firestore:", data.id);
         const newProp: Prop = { ...propDataToSave, id: data.id };
         await createProp(newProp);
         toast.success(`Prop '${data.title}' created successfully.`);
@@ -215,33 +309,55 @@ const PropForm = () => {
                   </div>
                 )}
 
-                {/* URL Input */}
-                <div className="flex-grow space-y-2">
-                  <div>
-                    <Label htmlFor="imageUrl" className="text-xs text-[#aaa]">
-                      Image URL
-                    </Label>
-                    <Input
-                      id="imageUrl"
-                      {...register("imageUrl")}
-                      placeholder="https://example.com/image.jpg"
-                      className="bg-[#222] border-[#444] text-white focus:border-[#FFD700]"
-                      disabled={isSubmitting}
-                    />
-                  </div>
+                {/* File Upload */}
+                <div className="flex-grow">
+                  <Input
+                    id="imageFile"
+                    type="file"
+                    accept="image/*"
+                    ref={imageFileRef}
+                    onChange={handleImageFileChange}
+                    className="bg-[#222] border-[#444] text-white focus:border-[#FFD700]"
+                    disabled={isUploading}
+                  />
                 </div>
               </div>
               {/* Combined Error Display for Image */}
               {errors.imageUrl && <p className="text-red-500 text-sm mt-1">{errors.imageUrl.message}</p>}
             </div>
 
-            {/* Video URL Field (Optional) */}
+            {/* Video Section */}
             <div className="space-y-2">
-              <Label htmlFor="videoUrl" className="text-[#ccc]">
-                Video URL (Optional)
-              </Label>
-              <Input id="videoUrl" {...register("videoUrl")} placeholder="https://youtube.com/watch?v=..." className="bg-[#222] border-[#444] text-white focus:border-[#FFD700]" />
-              {errors.videoUrl && <p className="text-red-500 text-sm">{errors.videoUrl.message}</p>}
+              <Label className="text-[#ccc]">Prop Video (Optional)</Label>
+              <div className="flex items-center gap-4">
+                {/* Video Preview */}
+                {videoPreviewUrl && (
+                  <video controls className="h-20 w-20 object-cover rounded-sm border border-[#444] bg-[#222]">
+                    <source src={videoPreviewUrl} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                )}
+                {!videoPreviewUrl && (
+                  <div className="h-20 w-20 flex items-center justify-center rounded-sm border border-[#444] bg-[#222] text-[#666]">
+                    <span>Preview</span>
+                  </div>
+                )}
+
+                {/* File Upload */}
+                <div className="flex-grow">
+                  <Input
+                    id="videoFile"
+                    type="file"
+                    accept="video/*"
+                    ref={videoFileRef}
+                    onChange={handleVideoFileChange}
+                    className="bg-[#222] border-[#444] text-white focus:border-[#FFD700]"
+                    disabled={isUploading}
+                  />
+                </div>
+              </div>
+              {/* Combined Error Display for Video */}
+              {errors.videoUrl && <p className="text-red-500 text-sm mt-1">{errors.videoUrl.message}</p>}
             </div>
 
             {/* Description Field */}
@@ -293,6 +409,24 @@ const PropForm = () => {
               <Input id="year" type="number" {...register("year", { valueAsNumber: true })} placeholder="e.g., 1985" className="bg-[#222] border-[#444] text-white focus:border-[#FFD700]" />
               {errors.year && <p className="text-red-500 text-sm">{errors.year.message}</p>}
             </div>
+
+            {/* External Link Field (Optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="externalLink" className="text-[#ccc]">
+                External Link (Optional)
+              </Label>
+              <Input id="externalLink" {...register("externalLink")} placeholder="https://example.com" className="bg-[#222] border-[#444] text-white focus:border-[#FFD700]" />
+              {errors.externalLink && <p className="text-red-500 text-sm">{errors.externalLink.message}</p>}
+            </div>
+
+            {/* Sort Order Field */}
+            <div className="space-y-2">
+              <Label htmlFor="sortOrder" className="text-[#ccc]">
+                Display Order
+              </Label>
+              <Input id="sortOrder" type="number" {...register("sortOrder", { valueAsNumber: true })} placeholder="0" className="bg-[#222] border-[#444] text-white focus:border-[#FFD700]" />
+              {errors.sortOrder && <p className="text-red-500 text-sm">{errors.sortOrder.message}</p>}
+            </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Link to="/admin/props">
@@ -300,8 +434,8 @@ const PropForm = () => {
                 Cancel
               </Button>
             </Link>
-            <Button type="submit" disabled={isSubmitting || isLoadingData} className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-black hover:opacity-90 min-w-[100px]">
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Save Changes" : "Create Prop"}
+            <Button type="submit" disabled={isSubmitting || isLoadingData || isUploading} className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-black hover:opacity-90 min-w-[100px]">
+              {isSubmitting || isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Save Changes" : "Create Prop"}
             </Button>
           </CardFooter>
         </form>

@@ -18,7 +18,7 @@ const Footer = () => {
             Birthday Messages
           </Link>
         </nav>
-        <div className="text-center mt-6 text-muted-foreground text-sm">© {new Date().getFullYear()} Tom's 50th Birthday Challenge</div>
+        <div className="text-center mt-6 text-muted-foreground text-sm">© {new Date().getFullYear()} Tom's 50th: The Birthday Paradox</div>
       </div>
     </footer>
   );

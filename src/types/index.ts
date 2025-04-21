@@ -260,6 +260,8 @@ export interface Prop {
   backstory: string;
   funFact?: string;
   year: number;
+  externalLink?: string; // Optional URL to an external resource
+  sortOrder: number; // Used to control display order of props
   // Add timestamps if needed later
   // createdAt?: Timestamp;
   // updatedAt?: Timestamp;

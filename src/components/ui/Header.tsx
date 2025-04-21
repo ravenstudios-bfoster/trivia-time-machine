@@ -31,6 +31,9 @@ const Header = () => {
           <Link to="/birthday-messages" className="text-white hover:text-primary transition-colors text-lg">
             Birthday Messages
           </Link>
+          <a href="https://give.michaeljfox.org/fundraiser/6119686" target="_blank" rel="noopener noreferrer" className="text-white hover:text-primary transition-colors text-lg">
+            Team Fox
+          </a>
         </nav>
 
         <div className="flex items-center gap-4">
@@ -58,6 +61,9 @@ const Header = () => {
             <Link to="/birthday-messages" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Birthday Messages
             </Link>
+            <a href="https://give.michaeljfox.org/fundraiser/6119686" target="_blank" rel="noopener noreferrer" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
+              Team Fox
+            </a>
           </div>
         </nav>
       )}

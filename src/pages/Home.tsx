@@ -9,7 +9,7 @@ const Home = () => {
         <div className="mt-20">
           <TimeCircuitDisplay />
         </div>
-        <p className="mt-8 text-lg text-muted-foreground italic">"If you're gonna build a time machine into a car, why not do it with some style?"</p>
+        <p className="mt-8 text-lg text-muted-foreground italic">"If you’re going to build a 50th birthday party into a Back to the Future EVENT, Why not do it with some style?"</p>
       </div>
     </Layout>
   );

@@ -89,19 +89,17 @@ const PropDetail = () => {
                 </div>
                 {prop.videoUrl && (
                   <div className="mt-4">
-                    {prop.videoUrl.includes("youtube.com/watch?v=") || prop.videoUrl.includes("youtu.be/") ? (
-                      <iframe
-                        src={prop.videoUrl.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")}
-                        className="w-full aspect-video rounded-lg"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        title={`${prop.title} Video`}
-                      />
-                    ) : (
-                      <a href={prop.videoUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                        View Video Link
-                      </a>
-                    )}
+                    <video src={prop.videoUrl} controls className="w-full rounded-lg" style={{ maxHeight: "400px" }} />
+                  </div>
+                )}
+                {prop.externalLink && (
+                  <div className="mt-4">
+                    <a href={prop.externalLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-[#FFD700] hover:text-[#FFA500] transition-colors">
+                      <span>More Details</span>
+                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
                   </div>
                 )}
               </div>
