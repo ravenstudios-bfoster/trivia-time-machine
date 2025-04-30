@@ -4,29 +4,45 @@ import { Layout } from "@/components/ui/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { getGameById, getGameQuestions } from "@/lib/firebase";
+import { getGameById, getGameQuestions, joinGame, submitGameAnswer } from "@/lib/firebase";
 import { Game, Question } from "@/types";
 import { useGame } from "@/context/GameContext";
 import { toast } from "sonner";
 import { Trophy, BrainCircuit, HelpCircle, Clock, ArrowRight } from "lucide-react";
 import { formatTime } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import { Timestamp } from "firebase/firestore";
 
 const GamePlay = () => {
+  const { state, dispatch } = useGame();
+  const { currentUser } = useAuth();
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
-  const { state, dispatch } = useGame();
   const [game, setGame] = useState<Game | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(30);
-  const [gameState, setGameState] = useState<"start" | "playing" | "ended">("start");
+  const [gameState, setGameState] = useState<"loading" | "start" | "playing" | "ended">("loading");
   const [score, setScore] = useState(0);
   const [showHint, setShowHint] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    console.log("GamePlay mounted, current state:", {
+      state,
+      currentUser,
+      gameId,
+    });
+  }, [state, currentUser, gameId]);
 
   useEffect(() => {
     const loadGame = async () => {
-      if (!gameId) return;
+      if (!gameId) {
+        toast.error("No game selected");
+        navigate("/");
+        return;
+      }
 
       try {
         const gameData = await getGameById(gameId);
@@ -40,6 +56,7 @@ const GamePlay = () => {
         const gameQuestions = await getGameQuestions(gameId);
         setQuestions(gameQuestions);
         setTimeLeft(gameData.timeLimit || 30);
+        setGameState("start");
       } catch (error) {
         console.error("Error loading game:", error);
         toast.error("Failed to load game");
@@ -67,18 +84,70 @@ const GamePlay = () => {
     return () => clearInterval(timer);
   }, [gameState, currentQuestionIndex]);
 
-  const handleStartGame = () => {
-    setGameState("playing");
+  const handleStartGame = async () => {
+    console.log("Start Game button clicked");
+    console.log("Current auth state:", { currentUser, gameId, game });
+
+    if (!gameId) {
+      console.log("No gameId found");
+      return;
+    }
+
+    if (!currentUser) {
+      console.log("No user found in AuthContext");
+      toast.error("Please log in to play");
+      return;
+    }
+
+    try {
+      console.log("Attempting to join game with user:", currentUser.id);
+      await joinGame(gameId, currentUser.id);
+      console.log("Successfully joined game");
+      setGameState("playing");
+
+      // Update the game context with the current player
+      dispatch({
+        type: "SET_PLAYER",
+        payload: {
+          id: currentUser.id,
+          name: currentUser.displayName,
+          email: currentUser.email,
+          sessions: [],
+          highestLevelAchieved: 1,
+          createdAt: Timestamp.fromDate(new Date()),
+          updatedAt: Timestamp.fromDate(new Date()),
+        },
+      });
+    } catch (error) {
+      console.error("Error joining game:", error);
+      toast.error("Failed to join game");
+    }
   };
 
-  const handleAnswerSubmit = (answer: string | null) => {
-    if (!game || !questions[currentQuestionIndex]) return;
+  const handleAnswerSubmit = async (answer: string | null) => {
+    if (!game || !questions[currentQuestionIndex] || !state.player) return;
 
-    // Calculate score
-    const isCorrect = answer === questions[currentQuestionIndex].correctAnswer;
+    const currentQuestion = questions[currentQuestionIndex];
+    const selectedAnswerIndex = currentQuestion.options?.indexOf(answer || "") || -1;
+    console.log("Answer submission:", {
+      selectedAnswer: answer,
+      selectedIndex: selectedAnswerIndex,
+      correctAnswer: currentQuestion.correctAnswer,
+      isCorrect: selectedAnswerIndex === currentQuestion.correctAnswer,
+    });
+
+    const isCorrect = selectedAnswerIndex === currentQuestion.correctAnswer;
     if (isCorrect) {
       setScore((prev) => prev + 1);
     }
+
+    // Submit answer to Firebase
+    await submitGameAnswer(game.id, state.player.id, {
+      questionId: questions[currentQuestionIndex].id,
+      selectedAnswer: answer || "",
+      isCorrect,
+      timeRemaining: timeLeft,
+    });
 
     // Move to next question or end game
     if (currentQuestionIndex < questions.length - 1) {
@@ -91,11 +160,23 @@ const GamePlay = () => {
     }
   };
 
-  if (!game) {
+  if (gameState === "loading") {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin h-8 w-8 border-4 border-[#FF3D00] border-t-transparent rounded-full" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!game) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-gray-600">Loading game...</p>
+          </div>
         </div>
       </Layout>
     );

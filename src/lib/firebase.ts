@@ -28,6 +28,7 @@ import {
   serverTimestamp,
   writeBatch,
   increment,
+  arrayUnion,
   DocumentReference,
   CollectionReference,
   type DocumentData,
@@ -950,4 +951,43 @@ export const getVotingWindow = async (): Promise<VotingWindow | null> => {
     endDateTime: data.endDateTime instanceof Timestamp ? data.endDateTime.toDate() : null,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(),
   } as VotingWindow;
+};
+
+export const joinGame = async (gameId: string, userId: string) => {
+  const gameRef = doc(db, "games", gameId);
+  const userRef = doc(db, "users", userId);
+
+  // Add user to game's participants array
+  await updateDoc(gameRef, {
+    participants: arrayUnion(userId),
+    participantCount: increment(1),
+  });
+
+  // Create user's game history entry
+  const userGameRef = doc(collection(userRef, "games"), gameId);
+  await setDoc(userGameRef, {
+    gameId,
+    startTime: serverTimestamp(),
+    answers: [],
+    score: 0,
+  });
+};
+
+export const submitGameAnswer = async (
+  gameId: string,
+  userId: string,
+  answer: {
+    questionId: string;
+    selectedAnswer: string;
+    isCorrect: boolean;
+    timeRemaining: number;
+  }
+) => {
+  const userRef = doc(db, "users", userId);
+  const userGameRef = doc(collection(userRef, "games"), gameId);
+
+  await updateDoc(userGameRef, {
+    answers: arrayUnion(answer),
+    score: increment(answer.isCorrect ? 1 : 0),
+  });
 };

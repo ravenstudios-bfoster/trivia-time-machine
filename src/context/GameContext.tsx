@@ -93,6 +93,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
   switch (action.type) {
     case "SET_PLAYER":
+      console.log("Setting player in GameContext:", action.payload);
       newState = {
         ...state,
         player: action.payload,
