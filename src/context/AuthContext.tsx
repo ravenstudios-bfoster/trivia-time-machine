@@ -3,10 +3,12 @@ import { User, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "f
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { toast } from "sonner";
-import { UserRole } from "@/types";
+import { UserRole, AppUser } from "@/types";
+import { useGame } from "@/context/GameContext";
+import { Timestamp } from "firebase/firestore";
 
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: AppUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -30,47 +32,77 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { dispatch } = useGame();
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
 
-  const checkUserRole = async (user: User) => {
+  const getUserData = async (firebaseUser: User): Promise<AppUser | null> => {
     try {
-      // Use email as the document ID
-      const userRef = doc(db, "users", user.uid!);
-      console.log("user email:", user.email);
-      console.log("user uid:", user.uid);
+      const userRef = doc(db, "users", firebaseUser.uid);
       const userDoc = await getDoc(userRef);
-      console.log("User doc data:", userDoc.data()); // Debug log
 
       if (userDoc.exists()) {
-        const role = userDoc.data().role as UserRole;
-        console.log("Found role:", role); // Debug log
-        setUserRole(role);
-        setIsAdmin(role === "admin" || role === "super_admin");
-        setIsSuperAdmin(role === "super_admin");
-      } else {
-        console.log("No user document found"); // Debug log
-        setUserRole("user");
-        setIsAdmin(false);
-        setIsSuperAdmin(false);
+        const userData = userDoc.data();
+        const appUser = {
+          id: firebaseUser.uid,
+          displayName: userData.displayName || firebaseUser.displayName || "",
+          email: firebaseUser.email || "",
+          role: userData.role || "participant",
+          createdAt: userData.createdAt?.toDate() || new Date(),
+          lastLogin: new Date(),
+          gamesParticipated: userData.gamesParticipated || 0,
+        };
+
+        // Initialize player in GameContext
+        dispatch({
+          type: "SET_PLAYER",
+          payload: {
+            id: appUser.id,
+            name: appUser.displayName,
+            email: appUser.email,
+            sessions: [],
+            highestLevelAchieved: 1,
+            createdAt: Timestamp.fromDate(new Date()),
+            updatedAt: Timestamp.fromDate(new Date()),
+          },
+        });
+
+        return appUser;
       }
+      return null;
     } catch (error) {
-      console.error("Error checking user role:", error);
-      setUserRole("user");
-      setIsAdmin(false);
-      setIsSuperAdmin(false);
+      console.error("Error fetching user data:", error);
+      return null;
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        await checkUserRole(user);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("AuthStateChanged:", {
+        hasFirebaseUser: !!firebaseUser,
+        firebaseUser: firebaseUser
+          ? {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+            }
+          : null,
+      });
+
+      if (firebaseUser) {
+        const userData = await getUserData(firebaseUser);
+        console.log("Fetched user data:", userData);
+        setCurrentUser(userData);
+        if (userData) {
+          setUserRole(userData.role);
+          setIsAdmin(userData.role === "admin" || userData.role === "super_admin");
+          setIsSuperAdmin(userData.role === "super_admin");
+        }
       } else {
+        setCurrentUser(null);
         setUserRole(null);
         setIsAdmin(false);
         setIsSuperAdmin(false);
@@ -82,9 +114,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const login = async (email: string, password: string) => {
+    console.log("Attempting login with:", email);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await checkUserRole(userCredential.user);
+      console.log("Login successful:", {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+      });
+      const userData = await getUserData(userCredential.user);
+      if (userData) {
+        setCurrentUser(userData);
+        setUserRole(userData.role);
+        setIsAdmin(userData.role === "admin" || userData.role === "super_admin");
+        setIsSuperAdmin(userData.role === "super_admin");
+      }
     } catch (error) {
       console.error("Login failed:", error);
       throw error;

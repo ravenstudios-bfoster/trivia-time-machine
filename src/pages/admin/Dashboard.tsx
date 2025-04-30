@@ -14,6 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Timestamp } from "firebase/firestore";
+
+const formatTimestamp = (timestamp: Timestamp | null | undefined) => {
+  if (!timestamp) return "N/A";
+  return format(timestamp.toDate(), "MMM d");
+};
 
 const AdminDashboard = () => {
   const { isSuperAdmin, user } = useAuth();
@@ -98,7 +104,12 @@ const AdminDashboard = () => {
   const level3Questions = questions.filter((q) => q.level === 3).length;
 
   // Get recent games (last 5)
-  const recentGames = [...games].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()).slice(0, 5);
+  const recentGames = [...games]
+    .sort((a, b) => {
+      if (!a.createdAt || !b.createdAt) return 0;
+      return b.createdAt.toMillis() - a.createdAt.toMillis();
+    })
+    .slice(0, 5);
 
   // Get recent questions (last 5)
   const recentQuestions = [...questions]
@@ -233,7 +244,7 @@ const AdminDashboard = () => {
                         </Badge>
                       </div>
                       <div className="col-span-2 text-[#666]">{game.maxPlayers}</div>
-                      <div className="col-span-2 text-[#666]">{format(game.createdAt.toDate(), "MMM d")}</div>
+                      <div className="col-span-2 text-[#666]">{formatTimestamp(game.createdAt)}</div>
                       <div className="col-span-2">
                         <Link to={`/admin/games/${game.id}`}>
                           <Button variant="outline" size="sm" className="border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]">

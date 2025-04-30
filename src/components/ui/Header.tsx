@@ -20,7 +20,7 @@ const Header = () => {
 
         {/* Desktop Navigation */}
         <nav className="hidden lg:flex items-center space-x-8">
-          <ProtectedLink to="/enter" className="text-white hover:text-primary transition-colors text-lg">
+          <ProtectedLink to="/levels" className="text-white hover:text-primary transition-colors text-lg">
             Trivia Game
           </ProtectedLink>
           <ProtectedLink to="/costume-voting" className="text-white hover:text-primary transition-colors text-lg">
@@ -50,7 +50,7 @@ const Header = () => {
       {isMenuOpen && (
         <nav className="lg:hidden absolute top-16 left-0 right-0 bg-black/95 backdrop-blur-sm py-4 px-6 shadow-lg">
           <div className="flex flex-col space-y-4">
-            <ProtectedLink to="/enter" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
+            <ProtectedLink to="/levels" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Trivia Game
             </ProtectedLink>
             <ProtectedLink to="/costume-voting" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>

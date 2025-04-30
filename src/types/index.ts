@@ -108,9 +108,11 @@ export interface Game {
   adminId: string;
   participants: Participant[];
   participantCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-  scheduledStartTime?: Date;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  scheduledStartTime?: Timestamp | null;
+  startedAt?: Timestamp | null;
+  endedAt?: Timestamp | null;
   questionIds: string[];
 }
 
@@ -157,7 +159,7 @@ export type Participant = {
 };
 
 // Admin User Types
-export type UserRole = "super_admin" | "admin" | "user";
+export type UserRole = "super_admin" | "admin" | "user" | "participant";
 
 export type AdminUser = {
   id: string;
@@ -167,6 +169,16 @@ export type AdminUser = {
   lastLogin?: Timestamp;
   createdAt: Timestamp;
 };
+
+export interface AppUser {
+  id: string;
+  displayName: string;
+  email: string;
+  role: UserRole;
+  createdAt: Date;
+  lastLogin: Date;
+  gamesParticipated: number;
+}
 
 // Game Analytics
 export type QuestionStat = {

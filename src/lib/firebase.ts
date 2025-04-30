@@ -178,9 +178,6 @@ export const getGames = async (): Promise<Game[]> => {
     return {
       id: doc.id,
       ...data,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(),
-      scheduledStartTime: data.scheduledStartTime instanceof Timestamp ? data.scheduledStartTime.toDate() : null,
     } as Game;
   });
 };
@@ -782,7 +779,9 @@ export const castVote = async (userId: string, costumeId: string, category: stri
   }
 };
 
-export const getUserVotes = async (userId: string): Promise<Vote[]> => {
+export const getUserVotes = async (userId: string | undefined | null): Promise<Vote[]> => {
+  if (!userId) return [];
+
   const voteQuery = query(votesCollection, where("userId", "==", userId));
   const snapshot = await getDocs(voteQuery);
   return snapshot.docs.map((doc) => ({

@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useGame } from "@/context/GameContext";
-import Auth from "./pages/Auth";
+import { useAuth } from "@/context/AuthContext";
 import LevelSelect from "@/pages/LevelSelect";
 import Game from "@/pages/Game";
 import Results from "@/pages/Results";
@@ -13,7 +13,6 @@ import NotFound from "./pages/NotFound";
 import { GameProvider } from "@/context/GameContext";
 import { AuthProvider } from "./context/AuthContext";
 import Home from "@/pages/Home";
-import Enter from "@/pages/Enter";
 import Admin from "./pages/Admin";
 import CostumeGallery from "@/pages/CostumeGallery";
 import PropsAndMemorabilia from "@/pages/PropsAndMemorabilia";
@@ -24,20 +23,50 @@ import Leaderboard from "@/pages/Leaderboard";
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { state } = useGame();
+  const { currentUser, isLoading } = useAuth();
   const location = useLocation();
 
-  if (!state.player?.id) {
-    return <Navigate to="/" replace />;
+  console.log("ProtectedRoute Debug:", {
+    path: location.pathname,
+    currentUser: currentUser
+      ? {
+          id: currentUser.id,
+          displayName: currentUser.displayName,
+          role: currentUser.role,
+        }
+      : null,
+    isLoading,
+    gameState: state
+      ? {
+          hasCurrentSession: !!state.currentSession,
+          player: state.player
+            ? {
+                id: state.player.id,
+                name: state.player.name,
+              }
+            : null,
+        }
+      : null,
+  });
+
+  // First check authentication
+  if (!currentUser) {
+    console.log("No current user, redirecting to home");
+    return <Navigate to="/" replace state={{ from: location }} />;
   }
 
+  // Only check game session state for game and results pages
   if (location.pathname === "/game" && !state.currentSession) {
+    console.log("No current session for game page, redirecting to levels");
     return <Navigate to="/levels" replace />;
   }
 
   if (location.pathname === "/results" && !state.currentSession) {
+    console.log("No current session for results page, redirecting to levels");
     return <Navigate to="/levels" replace />;
   }
 
+  console.log("Access granted to:", location.pathname);
   return <>{children}</>;
 };
 
@@ -80,8 +109,6 @@ const App = () => (
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/enter" element={<Enter />} />
-                <Route path="/auth" element={<Auth />} />
                 <Route
                   path="/levels"
                   element={

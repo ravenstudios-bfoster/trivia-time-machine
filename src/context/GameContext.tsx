@@ -44,7 +44,18 @@ const loadState = (): GameState => {
     if (serializedState === null) {
       return initialState;
     }
-    return JSON.parse(serializedState);
+    const parsedState = JSON.parse(serializedState);
+
+    // If there's a new player being set (from auth), don't load the old player state
+    const currentPlayer = localStorage.getItem("currentPlayer");
+    if (currentPlayer) {
+      return {
+        ...parsedState,
+        player: JSON.parse(currentPlayer),
+      };
+    }
+
+    return parsedState;
   } catch (err) {
     console.error("Error loading state from localStorage:", err);
     return initialState;
@@ -56,6 +67,13 @@ const saveState = (state: GameState) => {
   try {
     const serializedState = JSON.stringify(state);
     localStorage.setItem("gameState", serializedState);
+
+    // Store player separately to handle auth initialization
+    if (state.player) {
+      localStorage.setItem("currentPlayer", JSON.stringify(state.player));
+    } else {
+      localStorage.removeItem("currentPlayer");
+    }
   } catch (err) {
     console.error("Error saving state to localStorage:", err);
   }
@@ -226,6 +244,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     }
 
     case "LOGOUT":
+      localStorage.removeItem("currentPlayer");
       newState = initialState;
       break;
 
@@ -256,6 +275,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         // Only clear if the session is completed
         if (state.currentSession.currentQuestionIndex >= state.questions.length) {
           localStorage.removeItem("gameState");
+          localStorage.removeItem("currentPlayer");
         }
       }
     };
