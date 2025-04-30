@@ -10,6 +10,7 @@ import { Layout } from "@/components/ui/Layout";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Clock } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function CostumeGallery() {
   const { currentUser } = useAuth();
@@ -17,7 +18,7 @@ export default function CostumeGallery() {
   const [userVotes, setUserVotes] = useState<Vote[]>([]);
   const [categories, setCategories] = useState<CostumeCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(["all"]));
+  const [selectedCostume, setSelectedCostume] = useState<Costume | null>(null);
   const [votingWindow, setVotingWindow] = useState<VotingWindow | null>(null);
   const [isVotingOpen, setIsVotingOpen] = useState(false);
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
@@ -71,30 +72,6 @@ export default function CostumeGallery() {
     }
   };
 
-  const toggleCategory = (categoryTag: string) => {
-    setSelectedCategories((prev) => {
-      const newCategories = new Set(prev);
-      if (categoryTag === "all") {
-        return new Set(["all"]);
-      }
-      newCategories.delete("all");
-      if (newCategories.has(categoryTag)) {
-        newCategories.delete(categoryTag);
-        if (newCategories.size === 0) {
-          return new Set(["all"]);
-        }
-      } else {
-        newCategories.add(categoryTag);
-      }
-      return newCategories;
-    });
-  };
-
-  const filteredCostumes = costumes.filter((costume) => {
-    if (selectedCategories.has("all")) return true;
-    return Array.from(selectedCategories).some((selectedCat) => costume.categories?.includes(selectedCat));
-  });
-
   const getVotingMessage = () => {
     if (!votingWindow) return null;
     let message = votingWindow.message || "";
@@ -138,31 +115,92 @@ export default function CostumeGallery() {
             </Dialog>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant={selectedCategories.has("all") ? "default" : "outline"} onClick={() => toggleCategory("all")} className="text-sm">
-              All Costumes
-            </Button>
+          {/* Categories Section */}
+          <div className="grid gap-4 md:grid-cols-2">
             {categories.map((category) => (
-              <Button key={category.id} variant={selectedCategories.has(category.tag) ? "default" : "outline"} onClick={() => toggleCategory(category.tag)} className="text-sm">
-                {category.name}
-              </Button>
+              <Card key={category.id} className="bg-secondary/10">
+                <CardContent className="p-4">
+                  <h3 className="text-lg font-semibold mb-1">{category.name}</h3>
+                  <p className="text-sm text-muted-foreground">{category.description}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
+          {/* Costume Grid */}
           {isLoading ? (
             <div className="flex justify-center items-center min-h-[400px]">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
-          ) : filteredCostumes.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredCostumes.map((costume) => (
-                <CostumeCard key={costume.id} costume={costume} userVotes={userVotes} onVote={handleVote} categories={categories} isVotingEnabled={isVotingOpen} />
+          ) : costumes.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {costumes.map((costume) => (
+                <Dialog key={costume.id}>
+                  <DialogTrigger asChild>
+                    <button className="w-full text-left focus:outline-none focus:ring-2 focus:ring-primary rounded-lg overflow-hidden">
+                      <div className="aspect-square relative bg-secondary/10 rounded-lg p-2">
+                        <img
+                          src={costume.photoUrl}
+                          alt={costume.characterName}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder-costume.jpg";
+                          }}
+                        />
+                      </div>
+                      <h3 className="mt-2 text-sm font-medium truncate px-2">{costume.characterName}</h3>
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                    <div className="flex flex-col gap-4">
+                      <div className="relative aspect-square bg-secondary/10 rounded-lg">
+                        <img
+                          src={costume.photoUrl}
+                          alt={costume.characterName}
+                          className="w-full h-full object-contain rounded-lg"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder-costume.jpg";
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-semibold">{costume.characterName}</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {categories.map((category) => {
+                            const hasVoted = userVotes.some((vote) => vote.costumeId === costume.id && vote.category === category.tag);
+                            return (
+                              <Button
+                                key={category.id}
+                                onClick={() => {
+                                  handleVote();
+                                  // Close dialog after voting
+                                  const dialogElement = document.querySelector('[role="dialog"]');
+                                  if (dialogElement) {
+                                    const closeButton = dialogElement.querySelector('[aria-label="Close"]');
+                                    if (closeButton instanceof HTMLElement) {
+                                      closeButton.click();
+                                    }
+                                  }
+                                }}
+                                disabled={!isVotingOpen || !currentUser || hasVoted}
+                                variant={hasVoted ? "secondary" : "default"}
+                                className="w-full h-auto min-h-[44px] whitespace-normal py-2 px-3 text-sm"
+                              >
+                                {hasVoted ? <span className="line-clamp-2">Voted for {category.name}</span> : <span className="line-clamp-2">Vote for {category.name}</span>}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               ))}
             </div>
           ) : (
             <div className="text-center py-12">
               <h3 className="text-xl font-semibold mb-2">No costumes found</h3>
-              <p className="text-muted-foreground">{selectedCategories.has("all") ? "Be the first to submit a costume!" : "No costumes found in the selected categories."}</p>
+              <p className="text-muted-foreground">Be the first to submit a costume!</p>
             </div>
           )}
         </div>

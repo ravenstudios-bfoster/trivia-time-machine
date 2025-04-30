@@ -50,22 +50,15 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
     { label: "Questions", href: "/admin/questions", icon: <HelpCircle className="h-4 w-4 mr-2" /> },
     { label: "Games", href: "/admin/games", icon: <Gamepad2 className="h-4 w-4 mr-2" /> },
     { label: "Leaderboard", href: "/admin/leaderboard", icon: <Trophy className="h-4 w-4 mr-2" /> },
-    { label: "Participants", href: "/admin/participants", icon: <Users className="h-4 w-4 mr-2" /> },
     { label: "Birthday Messages", href: "/admin/birthday-messages", icon: <MessageSquare className="h-4 w-4 mr-2" /> },
     { label: "Props", href: "/admin/props", icon: <Film className="h-4 w-4 mr-2" /> },
     { label: "Costumes", href: "/admin/costumes", icon: <Shirt className="h-4 w-4 mr-2" /> },
     { label: "Costume Categories", href: "/admin/costume-categories", icon: <Tags className="h-4 w-4 mr-2" /> },
+    { label: "Users", href: "/admin/users", icon: <ShieldAlert className="h-4 w-4 mr-2" /> },
   ];
 
-  // Add Users link for super admins only
+  // Add Seed Database link for super admins only
   if (isSuperAdmin) {
-    navItems.push({
-      label: "Admin Users",
-      href: "/admin/users",
-      icon: <ShieldAlert className="h-4 w-4 mr-2" />,
-    });
-
-    // Add Seed Database link for super admins only
     navItems.push({
       label: "Seed Database",
       href: "/admin/seed",
@@ -82,10 +75,8 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
       <header className="border-b border-[#333] bg-[#111]">
         <div className="container py-4 flex justify-between items-center">
           <Link to="/admin/dashboard" className="flex items-center gap-3 group">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#FFD700] to-[#FF3D00] drop-shadow-[0_0_10px_rgba(255,61,0,0.5)]">Trivia Admin</h1>
-              <p className="text-sm text-[#666]">Back to the Future Edition</p>
-            </div>
+            <img src="/images/logo.png" alt="Back to the Future Logo" className="h-8 w-auto" />
+            <p className="text-sm text-[#666]">Admin Panel</p>
           </Link>
 
           <div className="flex items-center gap-4">
@@ -105,20 +96,22 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
         {/* Sidebar */}
         <aside className="w-64 border-r border-[#333] p-4 hidden md:block bg-[#111]">
           <nav className="space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={`flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                  location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
-                    ? "bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white font-medium"
-                    : "text-[#666] hover:text-white hover:bg-[#222]"
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) =>
+              isSuperAdmin || item.href !== "/admin/users" ? (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
+                    location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
+                      ? "bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white font-medium"
+                      : "text-[#666] hover:text-white hover:bg-[#222]"
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              ) : null
+            )}
           </nav>
         </aside>
 

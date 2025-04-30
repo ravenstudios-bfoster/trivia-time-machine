@@ -98,7 +98,7 @@ export interface Game {
   description: string;
   maxParticipants: number;
   isPublic: boolean;
-  status: "active" | "completed" | "cancelled";
+  status: GameStatus;
   timeLimit: number;
   enableHints: boolean;
   enableBonusQuestions: boolean;
@@ -110,6 +110,8 @@ export interface Game {
   participantCount: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  scheduledStartTime?: Timestamp;
+  questionIds: string[];
 }
 
 // Game Question Junction
@@ -155,7 +157,7 @@ export type Participant = {
 };
 
 // Admin User Types
-export type UserRole = "admin" | "super_admin";
+export type UserRole = "super_admin" | "admin" | "user";
 
 export type AdminUser = {
   id: string;
@@ -220,6 +222,9 @@ export interface AccessCode {
   isUsed: boolean;
   usedAt?: Timestamp;
   usedBy?: string;
+  createdAt: Timestamp;
+  startDate: Timestamp;
+  expirationDate: Timestamp;
 }
 
 export interface Costume {
@@ -288,3 +293,14 @@ export interface VotingWindow {
   message: string;
   updatedAt?: Timestamp;
 }
+
+export type Answer = {
+  id: string;
+  questionId: string;
+  selectedAnswer: number | string;
+  isCorrect: boolean;
+  pointsEarned: number;
+  timeRemaining: number;
+  usedHint: boolean;
+  submittedAt: Timestamp;
+};

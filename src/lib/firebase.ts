@@ -1,5 +1,15 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User, createUserWithEmailAndPassword, updateProfile, setPersistence, browserLocalPersistence } from "firebase/auth";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
 import {
   getFirestore,
   collection,
@@ -43,6 +53,8 @@ import {
   Prop,
   CostumeCategory,
   VotingWindow,
+  Level,
+  Answer,
 } from "@/types";
 
 // Your web app's Firebase configuration
@@ -101,11 +113,11 @@ export const logoutUser = async () => {
   }
 };
 
-export const getCurrentUser = (): User | null => {
+export const getCurrentUser = (): FirebaseUser | null => {
   return auth.currentUser;
 };
 
-export const onAuthStateChange = (callback: (user: User | null) => void) => {
+export const onAuthStateChange = (callback: (user: FirebaseUser | null) => void) => {
   return onAuthStateChanged(auth, callback);
 };
 
@@ -622,17 +634,17 @@ export const getGameAnalytics = async (gameId: string): Promise<GameAnalytics | 
   }
 };
 
-export interface User {
+export interface AppUser {
   id: string;
   displayName: string;
   email: string;
-  role: "participant";
+  role: UserRole;
   createdAt: Date;
   lastLogin: Date;
   gamesParticipated: number;
 }
 
-export const createOrUpdateUser = async (userData: UserData): Promise<void> => {
+export const createOrUpdateUser = async (userData: AppUser): Promise<void> => {
   try {
     const userRef = doc(usersCollection, userData.uid);
     const userDoc = await getDoc(userRef);

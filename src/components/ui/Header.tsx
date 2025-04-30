@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
+import ProtectedLink from "@/components/ProtectedLink";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -19,18 +20,18 @@ const Header = () => {
 
         {/* Desktop Navigation */}
         <nav className="hidden lg:flex items-center space-x-8">
-          <Link to="/enter" className="text-white hover:text-primary transition-colors text-lg">
+          <ProtectedLink to="/enter" className="text-white hover:text-primary transition-colors text-lg">
             Trivia Game
-          </Link>
-          <Link to="/costume-voting" className="text-white hover:text-primary transition-colors text-lg">
+          </ProtectedLink>
+          <ProtectedLink to="/costume-voting" className="text-white hover:text-primary transition-colors text-lg">
             Costume Voting
-          </Link>
-          <Link to="/props-and-memorabilia" className="text-white hover:text-primary transition-colors text-lg">
+          </ProtectedLink>
+          <ProtectedLink to="/props-and-memorabilia" className="text-white hover:text-primary transition-colors text-lg">
             Props & Memorabilia
-          </Link>
-          <Link to="/birthday-messages" className="text-white hover:text-primary transition-colors text-lg">
+          </ProtectedLink>
+          <ProtectedLink to="/birthday-messages" className="text-white hover:text-primary transition-colors text-lg">
             Birthday Messages
-          </Link>
+          </ProtectedLink>
           <a href="https://give.michaeljfox.org/fundraiser/6119686" target="_blank" rel="noopener noreferrer" className="text-white hover:text-primary transition-colors text-lg">
             Team Fox
           </a>
@@ -49,18 +50,18 @@ const Header = () => {
       {isMenuOpen && (
         <nav className="lg:hidden absolute top-16 left-0 right-0 bg-black/95 backdrop-blur-sm py-4 px-6 shadow-lg">
           <div className="flex flex-col space-y-4">
-            <Link to="/enter" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
+            <ProtectedLink to="/enter" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Trivia Game
-            </Link>
-            <Link to="/costume-voting" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
+            </ProtectedLink>
+            <ProtectedLink to="/costume-voting" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Costume Voting
-            </Link>
-            <Link to="/props-and-memorabilia" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
+            </ProtectedLink>
+            <ProtectedLink to="/props-and-memorabilia" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Props & Memorabilia
-            </Link>
-            <Link to="/birthday-messages" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
+            </ProtectedLink>
+            <ProtectedLink to="/birthday-messages" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Birthday Messages
-            </Link>
+            </ProtectedLink>
             <a href="https://give.michaeljfox.org/fundraiser/6119686" target="_blank" rel="noopener noreferrer" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Team Fox
             </a>

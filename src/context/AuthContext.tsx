@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { toast } from "sonner";
+import { UserRole } from "@/types";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -11,6 +12,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  userRole: UserRole | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -32,32 +34,46 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
 
-  const checkAdminStatus = async (user: User) => {
-    const adminUsersRef = collection(db, "adminUsers");
-    const q = query(adminUsersRef, where("email", "==", user.email));
-    const querySnapshot = await getDocs(q);
+  const checkUserRole = async (user: User) => {
+    try {
+      // Use email as the document ID
+      const userRef = doc(db, "users", user.email!);
+      const userDoc = await getDoc(userRef);
+      console.log("User doc data:", userDoc.data()); // Debug log
 
-    if (!querySnapshot.empty) {
-      setIsAdmin(true);
-      return true;
+      if (userDoc.exists()) {
+        const role = userDoc.data().role as UserRole;
+        console.log("Found role:", role); // Debug log
+        setUserRole(role);
+        setIsAdmin(role === "admin" || role === "super_admin");
+        setIsSuperAdmin(role === "super_admin");
+      } else {
+        console.log("No user document found"); // Debug log
+        setUserRole("user");
+        setIsAdmin(false);
+        setIsSuperAdmin(false);
+      }
+    } catch (error) {
+      console.error("Error checking user role:", error);
+      setUserRole("user");
+      setIsAdmin(false);
+      setIsSuperAdmin(false);
     }
-
-    setIsAdmin(false);
-    return false;
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      setIsLoading(false);
-
       if (user) {
-        await checkAdminStatus(user);
+        await checkUserRole(user);
       } else {
+        setUserRole(null);
         setIsAdmin(false);
         setIsSuperAdmin(false);
       }
+      setIsLoading(false);
     });
 
     return unsubscribe;
@@ -66,12 +82,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (email: string, password: string) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const isUserAdmin = await checkAdminStatus(userCredential.user);
-
-      if (!isUserAdmin) {
-        await signOut(auth);
-        throw new Error("User is not an admin");
-      }
+      await checkUserRole(userCredential.user);
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
@@ -89,6 +100,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     logout,
     isAdmin,
     isSuperAdmin,
+    userRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -84,17 +84,6 @@ const TimeCircuitDisplay = () => {
       <div className="hidden lg:block">
         <img src="/images/time_circuit.png" alt="Time Circuit" className="w-full" />
 
-        {/* Destination Time Overlay */}
-        <div className="absolute top-[9%] left-0 right-[10%] h-20">
-          <div className="relative w-full h-full flex justify-center">
-            <div className="time-circuit-display text-7xl led-red digit-month">{destinationTimeDisplay.month}</div>
-            <div className="time-circuit-display text-7xl led-red digit-day">{destinationTimeDisplay.day}</div>
-            <div className="time-circuit-display text-7xl led-red digit-year">{destinationTimeDisplay.year}</div>
-            <div className="time-circuit-display text-7xl led-red digit-hour">{destinationTimeDisplay.hour}</div>
-            <div className="time-circuit-display text-7xl led-red digit-minute">{destinationTimeDisplay.minute}</div>
-          </div>
-        </div>
-
         {/* Present Time Overlay */}
         <div className="present-time">
           <div className="present-time-container">
