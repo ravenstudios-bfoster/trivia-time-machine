@@ -30,6 +30,8 @@ import {
   increment,
   DocumentReference,
   CollectionReference,
+  type DocumentData,
+  type Query,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
@@ -79,6 +81,36 @@ const storage = getStorage(app);
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error("Error setting auth persistence:", error);
 });
+
+// Export Firestore functions with proper types
+export {
+  getDoc,
+  doc,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  orderBy,
+  limit,
+  startAfter,
+  Timestamp,
+  type DocumentData,
+  type Query,
+  type CollectionReference,
+  type DocumentReference,
+} from "firebase/firestore";
+
+// Helper functions for Timestamp conversion
+export const timestampToDate = (timestamp: Timestamp): Date => {
+  return timestamp.toDate();
+};
+
+export const dateToTimestamp = (date: Date): Timestamp => {
+  return Timestamp.fromDate(date);
+};
 
 // Collection references
 export const gamesCollection = collection(db, "games");
@@ -138,21 +170,19 @@ export const createGame = async (gameData: Omit<Game, "id" | "createdAt" | "part
   }
 };
 
-export const getGames = async (filters: { status?: string; isPublic?: boolean } = {}): Promise<Game[]> => {
-  try {
-    const gamesRef = collection(db, "games");
-    let q = gamesRef;
-
-    if (filters.status) {
-      q = query(gamesRef, where("status", "==", filters.status));
-    }
-
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Game));
-  } catch (error) {
-    console.error("Error getting games:", error);
-    return [];
-  }
+export const getGames = async (): Promise<Game[]> => {
+  const gamesRef = collection(db, "games");
+  const snapshot = await getDocs(gamesRef);
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(),
+      scheduledStartTime: data.scheduledStartTime instanceof Timestamp ? data.scheduledStartTime.toDate() : null,
+    } as Game;
+  });
 };
 
 export const getGameById = async (gameId: string): Promise<Game | null> => {
@@ -508,17 +538,16 @@ export const createAccessCode = async (data: Omit<AccessCode, "id" | "createdAt"
 
 export const getAccessCodes = async (): Promise<AccessCode[]> => {
   const accessCodesRef = collection(db, "accessCodes");
-  const q = query(accessCodesRef, orderBy("createdAt", "desc"));
-  const snapshot = await getDocs(q);
-
+  const snapshot = await getDocs(accessCodesRef);
   return snapshot.docs.map((doc) => {
     const data = doc.data();
     return {
-      ...data,
       id: doc.id,
-      createdAt: data.createdAt.toDate(),
-      startDate: data.startDate.toDate(),
-      expirationDate: data.expirationDate.toDate(),
+      ...data,
+      usedAt: data.usedAt instanceof Timestamp ? data.usedAt.toDate() : null,
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+      startDate: data.startDate instanceof Timestamp ? data.startDate.toDate() : new Date(),
+      expirationDate: data.expirationDate instanceof Timestamp ? data.expirationDate.toDate() : new Date(),
     } as AccessCode;
   });
 };
@@ -898,17 +927,19 @@ export { auth, db, storage, createUserWithEmailAndPassword, signInWithEmailAndPa
 // Export Costume type AGAIN - Ensure this line is present
 export type { Costume };
 
-export const getVotingWindow = async (): Promise<VotingWindow> => {
-  const docRef = doc(db, "config", "votingWindow");
-  const docSnap = await getDoc(docRef);
+export const getVotingWindow = async (): Promise<VotingWindow | null> => {
+  const votingWindowRef = doc(db, "votingWindow", "current");
+  const docSnap = await getDoc(votingWindowRef);
 
   if (!docSnap.exists()) {
-    return {
-      startTime: "19:00",
-      endTime: "19:45",
-      message: "Voting will open at {time}",
-    };
+    return null;
   }
 
-  return docSnap.data() as VotingWindow;
+  const data = docSnap.data();
+  return {
+    ...data,
+    startDateTime: data.startDateTime instanceof Timestamp ? data.startDateTime.toDate() : null,
+    endDateTime: data.endDateTime instanceof Timestamp ? data.endDateTime.toDate() : null,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(),
+  } as VotingWindow;
 };

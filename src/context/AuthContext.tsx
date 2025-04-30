@@ -39,7 +39,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const checkUserRole = async (user: User) => {
     try {
       // Use email as the document ID
-      const userRef = doc(db, "users", user.email!);
+      const userRef = doc(db, "users", user.uid!);
+      console.log("user email:", user.email);
+      console.log("user uid:", user.uid);
       const userDoc = await getDoc(userRef);
       console.log("User doc data:", userDoc.data()); // Debug log
 

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { createCostume, uploadFile } from "@/lib/firebase";
+import { createCostume, uploadFile, getDoc, doc, db } from "@/lib/firebase";
 import { CostumeCategory } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,25 @@ export default function UserCostumeSubmission({ categories, onSuccess }: UserCos
   const [isLoading, setIsLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [characterName, setCharacterName] = useState("");
+  const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUserDisplayName(userData.displayName || null);
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, [currentUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,12 +58,17 @@ export default function UserCostumeSubmission({ categories, onSuccess }: UserCos
       // Get all category tags
       const allCategoryTags = categories.map((category) => category.tag);
 
+      // Get the user's display name from Firestore
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+      const displayName = userData?.displayName || currentUser.email;
+
       await createCostume({
         characterName: characterName.trim(),
         photoUrl,
         submittedBy: currentUser.uid,
-        submitterName: currentUser.email || "Anonymous",
-        categories: allCategoryTags, // Include all categories
+        submitterName: displayName,
+        categories: allCategoryTags,
       });
 
       toast.success("Costume submitted successfully!");

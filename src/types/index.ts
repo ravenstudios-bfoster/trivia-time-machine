@@ -108,9 +108,9 @@ export interface Game {
   adminId: string;
   participants: Participant[];
   participantCount: number;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  scheduledStartTime?: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
+  scheduledStartTime?: Date;
   questionIds: string[];
 }
 
@@ -220,11 +220,11 @@ export interface AccessCode {
   id: string;
   code: string;
   isUsed: boolean;
-  usedAt?: Timestamp;
+  usedAt?: Date;
   usedBy?: string;
-  createdAt: Timestamp;
-  startDate: Timestamp;
-  expirationDate: Timestamp;
+  createdAt: Date;
+  startDate: Date;
+  expirationDate: Date;
 }
 
 export interface Costume {
@@ -282,8 +282,8 @@ export interface CostumeCategory {
 
 export interface VotingWindow {
   // New format with full date-time
-  startDateTime?: Timestamp;
-  endDateTime?: Timestamp;
+  startDateTime?: Date;
+  endDateTime?: Date;
   // Old format with separate date and time
   startDate?: string;
   startTime?: string;
@@ -291,7 +291,7 @@ export interface VotingWindow {
   endTime?: string;
   // Common fields
   message: string;
-  updatedAt?: Timestamp;
+  updatedAt?: Date;
 }
 
 export type Answer = {
