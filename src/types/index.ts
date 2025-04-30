@@ -90,14 +90,12 @@ export type GameAction =
 // Admin-specific types
 export type PlayerStatus = "active" | "completed" | "kicked";
 
-export type GameStatus = "draft" | "scheduled" | "active" | "completed" | "ended" | "cancelled";
+export type GameStatus = "active" | "inactive";
 
 export interface Game {
   id: string;
   title: string;
   description: string;
-  maxParticipants: number;
-  isPublic: boolean;
   status: GameStatus;
   timeLimit: number;
   enableHints: boolean;
@@ -110,9 +108,6 @@ export interface Game {
   participantCount: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  scheduledStartTime?: Timestamp | null;
-  startedAt?: Timestamp | null;
-  endedAt?: Timestamp | null;
   questionIds: string[];
 }
 
@@ -172,6 +167,7 @@ export type AdminUser = {
 
 export interface AppUser {
   id: string;
+  uid: string;
   displayName: string;
   email: string;
   role: UserRole;

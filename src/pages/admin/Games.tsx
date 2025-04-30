@@ -27,7 +27,6 @@ const AdminGames = () => {
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [visibilityFilter, setVisibilityFilter] = useState<"all" | "public" | "private">("all");
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -107,9 +106,9 @@ const AdminGames = () => {
 
   const handleEndGame = async (gameId: string) => {
     try {
-      await updateGame(gameId, { status: "completed" });
-      setGames(games.map((game) => (game.id === gameId ? { ...game, status: "completed" } : game)));
-      setFilteredGames(filteredGames.map((game) => (game.id === gameId ? { ...game, status: "completed" } : game)));
+      await updateGame(gameId, { status: "inactive" });
+      setGames(games.map((game) => (game.id === gameId ? { ...game, status: "inactive" } : game)));
+      setFilteredGames(filteredGames.map((game) => (game.id === gameId ? { ...game, status: "inactive" } : game)));
       toast.success("Game ended successfully");
     } catch (error) {
       toast.error("Failed to end game");
@@ -136,15 +135,9 @@ const AdminGames = () => {
 
   const getStatusBadgeClass = (status: GameStatus) => {
     switch (status) {
-      case "scheduled":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
       case "active":
         return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
-      case "completed":
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300";
-      case "cancelled":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
-      case "draft":
+      case "inactive":
         return "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300";
@@ -153,15 +146,9 @@ const AdminGames = () => {
 
   const getStatusBadgeVariant = (status: GameStatus) => {
     switch (status) {
-      case "scheduled":
-        return "default";
       case "active":
         return "destructive";
-      case "completed":
-        return "outline";
-      case "cancelled":
-        return "destructive";
-      case "draft":
+      case "inactive":
         return "default";
       default:
         return "default";
@@ -204,7 +191,7 @@ const AdminGames = () => {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-4 border rounded-md bg-[#111] border-[#333]">
+          <div className="grid grid-cols-1 gap-2 p-4 border rounded-md bg-[#111] border-[#333]">
             <div>
               <label className="text-sm font-medium mb-1 block text-white">Status</label>
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as GameStatus | "all")}>
@@ -215,40 +202,11 @@ const AdminGames = () => {
                   <SelectItem value="all" className="text-white hover:bg-[#333]">
                     All Status
                   </SelectItem>
-                  <SelectItem value="draft" className="text-white hover:bg-[#333]">
-                    Draft
-                  </SelectItem>
-                  <SelectItem value="scheduled" className="text-white hover:bg-[#333]">
-                    Scheduled
-                  </SelectItem>
                   <SelectItem value="active" className="text-white hover:bg-[#333]">
                     Active
                   </SelectItem>
-                  <SelectItem value="completed" className="text-white hover:bg-[#333]">
-                    Completed
-                  </SelectItem>
-                  <SelectItem value="cancelled" className="text-white hover:bg-[#333]">
-                    Cancelled
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-1 block text-white">Visibility</label>
-              <Select value={visibilityFilter} onValueChange={(value) => setVisibilityFilter(value as "all" | "public" | "private")}>
-                <SelectTrigger className="bg-[#222] border-[#333] text-white">
-                  <SelectValue placeholder="Filter by visibility" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#222] border-[#333]">
-                  <SelectItem value="all" className="text-white hover:bg-[#333]">
-                    All Games
-                  </SelectItem>
-                  <SelectItem value="public" className="text-white hover:bg-[#333]">
-                    Public Only
-                  </SelectItem>
-                  <SelectItem value="private" className="text-white hover:bg-[#333]">
-                    Private Only
+                  <SelectItem value="inactive" className="text-white hover:bg-[#333]">
+                    Inactive
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -270,7 +228,6 @@ const AdminGames = () => {
                 <TableHead className="text-[#666]">Status</TableHead>
                 <TableHead className="text-[#666]">Players</TableHead>
                 <TableHead className="text-[#666]">Created</TableHead>
-                <TableHead className="text-[#666]">Visibility</TableHead>
                 <TableHead className="text-right text-[#666]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -279,17 +236,12 @@ const AdminGames = () => {
                 <TableRow key={game.id} className="hover:bg-[#222] border-b border-[#333]">
                   <TableCell className="font-medium text-white">{game.title}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(game.status)} className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white">
+                    <Badge variant={getStatusBadgeVariant(game.status)} className={getStatusBadgeClass(game.status)}>
                       {game.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-[#666]">{game.maxPlayers}</TableCell>
+                  <TableCell className="text-right">{game.participantCount}</TableCell>
                   <TableCell className="text-[#666]">{format(game.createdAt.toDate(), "MMM d, yyyy")}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={game.isPublic ? "border-[#FFD700] text-[#FFD700]" : "border-[#666] text-[#666]"}>
-                      {game.isPublic ? "Public" : "Private"}
-                    </Badge>
-                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -328,7 +280,7 @@ const AdminGames = () => {
       ) : (
         <div className="text-center p-12 border rounded-md bg-[#111] border-[#333]">
           <h3 className="text-lg font-medium mb-2 text-white">No games found</h3>
-          <p className="text-[#666] mb-6">{searchTerm || statusFilter !== "all" || visibilityFilter !== "all" ? "Try adjusting your filters" : "Create your first game to get started"}</p>
+          <p className="text-[#666] mb-6">{searchTerm || statusFilter !== "all" ? "Try adjusting your filters" : "Create your first game to get started"}</p>
           <Link to="/admin/games/new">
             <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
               <Plus className="h-4 w-4 mr-2" />

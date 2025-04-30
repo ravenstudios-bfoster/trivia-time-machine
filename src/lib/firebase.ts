@@ -156,9 +156,13 @@ export const onAuthStateChange = (callback: (user: FirebaseUser | null) => void)
 // Game functions
 export const createGame = async (gameData: Omit<Game, "id" | "createdAt" | "participantCount">): Promise<string> => {
   try {
+    const adminId = auth.currentUser?.uid;
+    if (!adminId) throw new Error("User not authenticated");
+
     const gamesRef = collection(db, "games");
     const newGame = {
       ...gameData,
+      adminId,
       participantCount: 0,
       createdAt: Timestamp.now(),
     };
