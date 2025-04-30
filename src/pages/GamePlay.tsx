@@ -4,7 +4,7 @@ import { Layout } from "@/components/ui/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { getGameById, getGameQuestions, joinGame, submitGameAnswer } from "@/lib/firebase";
+import { getGameById, getGameQuestions, joinGame, submitGameAnswer, hasUserPlayedGame } from "@/lib/firebase";
 import { Game, Question } from "@/types";
 import { useGame } from "@/context/GameContext";
 import { toast } from "sonner";
@@ -26,7 +26,7 @@ const GamePlay = () => {
   const [gameState, setGameState] = useState<"loading" | "start" | "playing" | "ended">("loading");
   const [score, setScore] = useState(0);
   const [showHint, setShowHint] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [hasPlayed, setHasPlayed] = useState(false);
 
   useEffect(() => {
     console.log("GamePlay mounted, current state:", {
@@ -56,6 +56,16 @@ const GamePlay = () => {
         const gameQuestions = await getGameQuestions(gameId);
         setQuestions(gameQuestions);
         setTimeLeft(gameData.timeLimit || 30);
+
+        // Check if user has already played this game
+        if (currentUser) {
+          const played = await hasUserPlayedGame(gameId, currentUser.id);
+          setHasPlayed(played);
+          if (played) {
+            toast.error("You have already played this game!");
+          }
+        }
+
         setGameState("start");
       } catch (error) {
         console.error("Error loading game:", error);
@@ -65,7 +75,7 @@ const GamePlay = () => {
     };
 
     loadGame();
-  }, [gameId, navigate]);
+  }, [gameId, navigate, currentUser]);
 
   useEffect(() => {
     if (gameState !== "playing") return;
@@ -100,6 +110,13 @@ const GamePlay = () => {
     }
 
     try {
+      // Check if user has already played this game
+      const hasPlayed = await hasUserPlayedGame(gameId, currentUser.id);
+      if (hasPlayed) {
+        toast.error("You have already played this game!");
+        return;
+      }
+
       console.log("Attempting to join game with user:", currentUser.id);
       await joinGame(gameId, currentUser.id);
       console.log("Successfully joined game");
@@ -128,7 +145,8 @@ const GamePlay = () => {
     if (!game || !questions[currentQuestionIndex] || !state.player) return;
 
     const currentQuestion = questions[currentQuestionIndex];
-    const selectedAnswerIndex = currentQuestion.options?.indexOf(answer || "") || -1;
+    const selectedAnswerIndex = answer ? parseInt(answer) : -1;
+
     console.log("Answer submission:", {
       selectedAnswer: answer,
       selectedIndex: selectedAnswerIndex,
@@ -144,7 +162,7 @@ const GamePlay = () => {
     // Submit answer to Firebase
     await submitGameAnswer(game.id, state.player.id, {
       questionId: questions[currentQuestionIndex].id,
-      selectedAnswer: answer || "",
+      selectedAnswer: currentQuestion.options?.[selectedAnswerIndex] || "",
       isCorrect,
       timeRemaining: timeLeft,
     });
@@ -205,9 +223,13 @@ const GamePlay = () => {
               </ul>
             </div>
 
-            <Button onClick={handleStartGame} className="w-full bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
-              Start Game
-            </Button>
+            {hasPlayed ? (
+              <div className="text-center text-red-500 font-semibold">You have already played this game!</div>
+            ) : (
+              <Button onClick={handleStartGame} className="w-full bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
+                Start Game
+              </Button>
+            )}
           </Card>
         </div>
       </Layout>
@@ -215,6 +237,8 @@ const GamePlay = () => {
   }
 
   if (gameState === "ended") {
+    const scorePercentage = (score / questions.length) * 100;
+
     return (
       <Layout>
         <div className="max-w-2xl mx-auto p-6">
@@ -222,7 +246,7 @@ const GamePlay = () => {
             <div className="text-center space-y-4">
               <h1 className="text-3xl font-bold">Game Over!</h1>
               <div className="text-4xl font-bold text-[#FF3D00]">
-                Score: {score}/{questions.length}
+                Score: {score}/{questions.length} ({scorePercentage.toFixed(1)}%)
               </div>
             </div>
 
@@ -277,8 +301,12 @@ const GamePlay = () => {
 
           {/* Answer Options */}
           <div className="space-y-3">
-            {questions[currentQuestionIndex].options.map((option, index) => (
-              <Button key={index} onClick={() => setSelectedAnswer(option)} className={`w-full justify-start ${selectedAnswer === option ? "bg-[#FF3D00] text-white" : "bg-gray-100 hover:bg-gray-200"}`}>
+            {questions[currentQuestionIndex].options?.map((option, index) => (
+              <Button
+                key={index}
+                onClick={() => setSelectedAnswer(index.toString())}
+                className={`w-full justify-start ${selectedAnswer === index.toString() ? "bg-[#FF3D00] text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+              >
                 {option}
               </Button>
             ))}

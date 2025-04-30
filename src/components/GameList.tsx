@@ -4,9 +4,10 @@ import { useGame } from "@/context/GameContext";
 import { Game, Level } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getGames } from "@/lib/firebase";
+import { getGames, hasUserPlayedGame } from "@/lib/firebase";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface GameListProps {
   level: Level;
@@ -15,8 +16,10 @@ interface GameListProps {
 
 export const GameList = ({ level, onClose }: GameListProps) => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
+  const [playedGames, setPlayedGames] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const loadGames = async () => {
@@ -25,6 +28,17 @@ export const GameList = ({ level, onClose }: GameListProps) => {
         const allGames = await getGames();
         const levelGames = allGames.filter((game) => game.status === "active" && game.allowedLevels.includes(level.toString()));
         setGames(levelGames);
+
+        // Check which games the user has played
+        if (currentUser) {
+          const playedStatus = await Promise.all(
+            levelGames.map(async (game) => {
+              const hasPlayed = await hasUserPlayedGame(game.id, currentUser.id);
+              return [game.id, hasPlayed];
+            })
+          );
+          setPlayedGames(Object.fromEntries(playedStatus));
+        }
       } catch (error) {
         console.error("Error loading games:", error);
         toast.error("Failed to load games");
@@ -34,9 +48,13 @@ export const GameList = ({ level, onClose }: GameListProps) => {
     };
 
     loadGames();
-  }, [level]);
+  }, [level, currentUser]);
 
   const handleJoinGame = (gameId: string) => {
+    if (playedGames[gameId]) {
+      toast.error("You have already played this game!");
+      return;
+    }
     // Simply navigate to the game page
     navigate(`/game/${gameId}`);
   };
@@ -68,8 +86,12 @@ export const GameList = ({ level, onClose }: GameListProps) => {
                   <h3 className="font-semibold">{game.title}</h3>
                   <p className="text-sm text-gray-500">Players: {game.participantCount || 0}</p>
                 </div>
-                <Button onClick={() => handleJoinGame(game.id)} className="bg-yellow-600 hover:bg-yellow-700">
-                  Join Game
+                <Button
+                  onClick={() => handleJoinGame(game.id)}
+                  className={`${playedGames[game.id] ? "bg-gray-400 cursor-not-allowed" : "bg-yellow-600 hover:bg-yellow-700"}`}
+                  disabled={playedGames[game.id]}
+                >
+                  {playedGames[game.id] ? "Already Played" : "Join Game"}
                 </Button>
               </div>
             </Card>

@@ -991,3 +991,15 @@ export const submitGameAnswer = async (
     score: increment(answer.isCorrect ? 1 : 0),
   });
 };
+
+export const hasUserPlayedGame = async (gameId: string, userId: string): Promise<boolean> => {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userGameRef = doc(collection(userRef, "games"), gameId);
+    const gameDoc = await getDoc(userGameRef);
+    return gameDoc.exists();
+  } catch (error) {
+    console.error("Error checking if user played game:", error);
+    return false;
+  }
+};
