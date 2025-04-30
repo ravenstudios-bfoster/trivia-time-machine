@@ -135,7 +135,12 @@ export default function QuestionSelectorDialog({ open, onOpenChange, onSelect, s
                 >
                   <Checkbox
                     checked={isQuestionSelected(question.id)}
-                    onCheckedChange={() => handleCheckQuestion(question)}
+                    onCheckedChange={() => {
+                      handleCheckQuestion(question);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
                     className="mr-4 border-[#444] data-[state=checked]:bg-[#FF3D00] data-[state=checked]:border-[#FF3D00]"
                   />
                   <div className="flex-1">

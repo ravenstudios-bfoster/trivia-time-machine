@@ -90,7 +90,7 @@ export type GameAction =
 // Admin-specific types
 export type PlayerStatus = "active" | "completed" | "kicked";
 
-export type GameStatus = "active" | "inactive";
+export type GameStatus = "active" | "inactive" | "draft" | "scheduled" | "completed" | "ended";
 
 export interface Game {
   id: string;
@@ -109,6 +109,8 @@ export interface Game {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   questionIds: string[];
+  scheduledStartTime?: Timestamp;
+  endedAt?: Timestamp;
 }
 
 // Game Question Junction

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { getGames, deleteGame, updateGame } from "@/lib/firebase";
 import { Game, GameStatus } from "@/types";
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Users, Play, StopCircle, Filter } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Users, Play, StopCircle, Filter, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Timestamp } from "firebase/firestore";
@@ -27,6 +27,7 @@ const AdminGames = () => {
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -226,6 +227,8 @@ const AdminGames = () => {
               <TableRow className="hover:bg-[#222] border-b border-[#333]">
                 <TableHead className="text-[#666]">Game Title</TableHead>
                 <TableHead className="text-[#666]">Status</TableHead>
+                <TableHead className="text-[#666]">Questions</TableHead>
+                <TableHead className="text-[#666]">Levels</TableHead>
                 <TableHead className="text-[#666]">Players</TableHead>
                 <TableHead className="text-[#666]">Created</TableHead>
                 <TableHead className="text-right text-[#666]">Actions</TableHead>
@@ -240,32 +243,47 @@ const AdminGames = () => {
                       {game.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{game.participantCount}</TableCell>
+                  <TableCell className="text-white">{game.questionIds?.length || 0}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {game.allowedLevels.sort().map((level) => (
+                        <Badge key={level} variant="outline" className={`${level === "3" ? "bg-purple-500/10 text-purple-400 border-purple-500" : "bg-yellow-500/10 text-yellow-400 border-yellow-500"}`}>
+                          Level {level}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[#666]">{game.participantCount}</TableCell>
                   <TableCell className="text-[#666]">{format(game.createdAt.toDate(), "MMM d, yyyy")}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-[#666] hover:text-white hover:bg-[#222]">
+                        <Button variant="ghost" className="h-8 w-8 p-0">
                           <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Actions</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
-                        <Link to={`/admin/games/${game.id}`}>
-                          <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit Game
+                        <DropdownMenuItem onClick={() => navigate(`/admin/games/${game.id}`)} className="text-gray-300 hover:bg-[#333] cursor-pointer">
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/admin/games/${game.id}/edit`)} className="text-gray-300 hover:bg-[#333] cursor-pointer">
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Game
+                        </DropdownMenuItem>
+                        {game.status === "inactive" && (
+                          <DropdownMenuItem onClick={() => handleStartGame(game.id)} className="text-gray-300 hover:bg-[#333] cursor-pointer">
+                            <Play className="h-4 w-4 mr-2" />
+                            Start Game
                           </DropdownMenuItem>
-                        </Link>
-                        <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer" onClick={() => handleStartGame(game.id)}>
-                          <Play className="h-4 w-4 mr-2" />
-                          Start Game
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer" onClick={() => handleEndGame(game.id)}>
-                          <StopCircle className="h-4 w-4 mr-2" />
-                          End Game
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteGameId(game.id)}>
+                        )}
+                        {game.status === "active" && (
+                          <DropdownMenuItem onClick={() => setEndGameId(game.id)} className="text-gray-300 hover:bg-[#333] cursor-pointer">
+                            <StopCircle className="h-4 w-4 mr-2" />
+                            End Game
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => setDeleteGameId(game.id)} className="text-red-500 hover:bg-[#333] hover:text-red-400 cursor-pointer">
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
                         </DropdownMenuItem>

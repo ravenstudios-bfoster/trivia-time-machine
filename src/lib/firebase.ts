@@ -159,15 +159,20 @@ export const createGame = async (gameData: Omit<Game, "id" | "createdAt" | "part
     const adminId = auth.currentUser?.uid;
     if (!adminId) throw new Error("User not authenticated");
 
-    const gamesRef = collection(db, "games");
+    // Generate a new document ID
+    const gameId = doc(collection(db, "games")).id;
+
     const newGame = {
       ...gameData,
+      id: gameId,
       adminId,
       participantCount: 0,
       createdAt: Timestamp.now(),
     };
-    const docRef = await addDoc(gamesRef, newGame);
-    return docRef.id;
+
+    // Use setDoc with the generated ID
+    await setDoc(doc(db, "games", gameId), newGame);
+    return gameId;
   } catch (error) {
     console.error("Error creating game:", error);
     throw new Error("Failed to create game");

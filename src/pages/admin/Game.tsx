@@ -198,17 +198,16 @@ const GameDetail = () => {
               </Button>
             )}
 
-            {/* Only allow editing for draft or scheduled games */}
-            {(game.status === "draft" || game.status === "scheduled") && (
-              <Button variant="outline" onClick={() => navigate(`/admin/games/${gameId}/edit`)} className="border-[#444] text-gray-400 hover:text-white hover:border-[#FF3D00]">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            )}
+            {/* Edit button - always show */}
+            <Button variant="outline" onClick={() => navigate(`/admin/games/${gameId}/edit`)} className="border-[#444] text-gray-400 hover:text-white hover:border-[#FF3D00]">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Game
+            </Button>
 
-            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} className="bg-red-600 text-white hover:bg-red-700">
+            {/* Delete button - always show */}
+            <Button variant="outline" onClick={() => setShowDeleteDialog(true)} className="border-[#444] text-red-500 hover:text-red-400 hover:border-red-500">
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              Delete Game
             </Button>
           </div>
         </div>

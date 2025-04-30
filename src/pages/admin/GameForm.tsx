@@ -31,12 +31,12 @@ import { db } from "@/lib/firebase";
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  status: z.enum(["active", "inactive"]).default("inactive"),
-  timeLimit: z.number().min(0).default(0),
+  status: z.enum(["active", "inactive", "draft", "scheduled", "completed", "ended"]).default("draft"),
+  timeLimit: z.number().min(5, "Minimum 5 seconds per question").max(120, "Maximum 120 seconds per question").default(30),
   enableHints: z.boolean().default(false),
   enableBonusQuestions: z.boolean().default(false),
   enablePostGameReview: z.boolean().default(false),
-  allowedLevels: z.array(z.string()).default([]),
+  allowedLevels: z.array(z.string()).min(1, "Select at least one level").default([]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -61,8 +61,8 @@ const GameForm = () => {
     defaultValues: {
       title: "",
       description: "",
-      status: "inactive",
-      timeLimit: 0,
+      status: "draft",
+      timeLimit: 30,
       enableHints: false,
       enableBonusQuestions: false,
       enablePostGameReview: false,
@@ -164,19 +164,13 @@ const GameForm = () => {
         enableBonusQuestions: values.enableBonusQuestions,
         enablePostGameReview: values.enablePostGameReview,
         allowedLevels: values.allowedLevels,
-        currentQuestionIndex: 0,
-        adminId: currentUser.uid,
-        participants: [],
-        participantCount: 0,
         questionIds: selectedQuestions.map((q) => q.id),
-        createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
 
       if (gameId) {
-        // For updates, don't include createdAt
-        const { createdAt, ...updateData } = gameData;
-        await updateGame(gameId, updateData);
+        // Update existing game
+        await updateGame(gameId, gameData);
         if (selectedQuestions.length > 0) {
           await addQuestionsToGame(
             gameId,
@@ -185,7 +179,16 @@ const GameForm = () => {
         }
         toast.success("Game updated successfully");
       } else {
-        const newGameId = await createGame(gameData);
+        // Create new game
+        const newGameData = {
+          ...gameData,
+          currentQuestionIndex: 0,
+          adminId: currentUser.uid,
+          participants: [],
+          participantCount: 0,
+          createdAt: Timestamp.now(),
+        };
+        const newGameId = await createGame(newGameData);
         if (selectedQuestions.length > 0) {
           await addQuestionsToGame(
             newGameId,
@@ -378,6 +381,87 @@ const GameForm = () => {
                             <Textarea placeholder="Enter game description" className="min-h-[100px] bg-[#222] border-[#444] text-white placeholder:text-gray-500" {...field} />
                           </FormControl>
                           <FormDescription className="text-gray-500">Describe what makes this game special</FormDescription>
+                          <FormMessage className="text-[#FF3D00]" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="timeLimit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-300">Time per Question (seconds)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={5}
+                              max={120}
+                              placeholder="Enter time in seconds"
+                              className="bg-[#222] border-[#444] text-white placeholder:text-gray-500"
+                              {...field}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormDescription className="text-gray-500">Set the time limit for each question (5-120 seconds)</FormDescription>
+                          <FormMessage className="text-[#FF3D00]" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="allowedLevels"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-300">Game Level</FormLabel>
+                          <FormControl>
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id="level1"
+                                  checked={field.value.includes("1")}
+                                  onCheckedChange={(checked) => {
+                                    const newValue = checked ? [...field.value, "1"] : field.value.filter((v) => v !== "1");
+                                    field.onChange(newValue);
+                                  }}
+                                  className="bg-[#222] border-[#444] data-[state=checked]:bg-yellow-500"
+                                />
+                                <label htmlFor="level1" className="text-sm font-medium leading-none text-gray-300 cursor-pointer">
+                                  Level 1 (Prize Eligible)
+                                </label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id="level2"
+                                  checked={field.value.includes("2")}
+                                  onCheckedChange={(checked) => {
+                                    const newValue = checked ? [...field.value, "2"] : field.value.filter((v) => v !== "2");
+                                    field.onChange(newValue);
+                                  }}
+                                  className="bg-[#222] border-[#444] data-[state=checked]:bg-yellow-500"
+                                />
+                                <label htmlFor="level2" className="text-sm font-medium leading-none text-gray-300 cursor-pointer">
+                                  Level 2 (Prize Eligible)
+                                </label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id="level3"
+                                  checked={field.value.includes("3")}
+                                  onCheckedChange={(checked) => {
+                                    const newValue = checked ? [...field.value, "3"] : field.value.filter((v) => v !== "3");
+                                    field.onChange(newValue);
+                                  }}
+                                  className="bg-[#222] border-[#444] data-[state=checked]:bg-purple-500"
+                                />
+                                <label htmlFor="level3" className="text-sm font-medium leading-none text-gray-300 cursor-pointer">
+                                  Level 3 (Bragging Rights)
+                                </label>
+                              </div>
+                            </div>
+                          </FormControl>
+                          <FormDescription className="text-gray-500">Select which level(s) this game is available for</FormDescription>
                           <FormMessage className="text-[#FF3D00]" />
                         </FormItem>
                       )}

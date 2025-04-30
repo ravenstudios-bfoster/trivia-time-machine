@@ -8,6 +8,7 @@ import { useGame } from "@/context/GameContext";
 import { useAuth } from "@/context/AuthContext";
 import LevelSelect from "@/pages/LevelSelect";
 import Game from "@/pages/Game";
+import GamePlay from "@/pages/GamePlay";
 import Results from "@/pages/Results";
 import NotFound from "./pages/NotFound";
 import { GameProvider } from "@/context/GameContext";
@@ -114,6 +115,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <LevelSelect />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/game/:gameId"
+                  element={
+                    <ProtectedRoute>
+                      <GamePlay />
                     </ProtectedRoute>
                   }
                 />
