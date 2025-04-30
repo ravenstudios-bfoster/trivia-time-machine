@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -11,23 +11,24 @@ const LoginButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    displayName: "",
+    email: "",
+    password: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.displayName.trim()) {
-      toast.error("Please enter your name");
+    if (!formData.email.trim() || !formData.password.trim()) {
+      toast.error("Please enter both email and password");
       return;
     }
 
     setIsLoading(true);
     try {
-      await login(formData.displayName);
+      await login(formData.email, formData.password);
       setIsOpen(false);
-      toast.success("Welcome to the Costume Gallery!");
+      toast.success("Successfully logged in!");
     } catch (error) {
-      toast.error("Failed to log in");
+      toast.error("Invalid email or password");
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -47,20 +48,25 @@ const LoginButton = () => {
 
   return (
     <>
-      <Button onClick={() => setIsOpen(true)}>Login to Vote & Submit</Button>
+      <Button onClick={() => setIsOpen(true)}>Sign In</Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Login to Participate</DialogTitle>
+            <DialogTitle>Sign In</DialogTitle>
+            <DialogDescription>Enter your credentials to access the trivia game.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="displayName">Your Name</Label>
-              <Input id="displayName" value={formData.displayName} onChange={(e) => setFormData({ ...formData, displayName: e.target.value })} placeholder="Enter your name" required />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="Enter your email" required />
             </div>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Continue"}
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="Enter your password" required />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
         </DialogContent>

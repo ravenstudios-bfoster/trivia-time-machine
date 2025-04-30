@@ -7,64 +7,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FirebaseError } from "firebase/app";
 
 const UserMenu = () => {
-  const { currentUser, login, register, logout } = useAuth();
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { currentUser, login, logout } = useAuth();
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    displayName: "",
   });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    setIsLoading(true);
     try {
       await login(formData.email, formData.password);
-      setIsAuthDialogOpen(false);
+      setIsLoginDialogOpen(false);
       toast.success("Welcome back!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to sign in");
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.email || !formData.password || !formData.displayName) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await register(formData.email, formData.password, formData.displayName);
-      setIsAuthDialogOpen(false);
-      toast.success("Welcome to the Costume Gallery!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create account");
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast.success("Logged out successfully");
     } catch (error) {
-      toast.error("Failed to log out");
+      const errorMessage = error instanceof FirebaseError ? error.message : "Failed to sign in";
+      toast.error(errorMessage);
       console.error(error);
     }
   };
@@ -72,66 +33,29 @@ const UserMenu = () => {
   if (!currentUser) {
     return (
       <>
-        <Button variant="outline" onClick={() => setIsAuthDialogOpen(true)}>
+        <Button variant="outline" onClick={() => setIsLoginDialogOpen(true)}>
           Sign In
         </Button>
 
-        <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+        <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle>Welcome</DialogTitle>
-              <DialogDescription>Sign in to your account or create a new one to participate in the costume contest.</DialogDescription>
+              <DialogTitle>Sign In Required</DialogTitle>
+              <DialogDescription>Please sign in to access this feature.</DialogDescription>
             </DialogHeader>
-
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="Enter your email" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="Enter your password" required />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign In"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="register-email">Email</Label>
-                    <Input id="register-email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="Enter your email" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="displayName">Display Name</Label>
-                    <Input id="displayName" value={formData.displayName} onChange={(e) => setFormData({ ...formData, displayName: e.target.value })} placeholder="Enter your name" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password">Password</Label>
-                    <Input
-                      id="register-password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="Create a password"
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Account"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="Enter your email" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="Enter your password" required />
+              </div>
+              <Button type="submit" className="w-full">
+                Sign In
+              </Button>
+            </form>
           </DialogContent>
         </Dialog>
       </>
@@ -162,7 +86,7 @@ const UserMenu = () => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>Sign out</DropdownMenuItem>
+        <DropdownMenuItem onClick={logout}>Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
