@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { submitBirthdayMessage } from "@/functions/birthdayMessages";
+import { useAuth } from "@/context/AuthContext";
+import { getDoc, doc, db } from "@/lib/firebase";
 
 const BirthdayMessageForm = ({ onSuccess }: { onSuccess: () => void }) => {
-  const [name, setName] = useState("");
+  const { currentUser } = useAuth();
   const [message, setMessage] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,10 +40,10 @@ const BirthdayMessageForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !videoFile) {
+    if (!currentUser || !videoFile) {
       toast({
         title: "Missing required fields",
-        description: "Please provide your name and a video message",
+        description: "Please sign in and provide a video message",
         variant: "destructive",
       });
       return;
@@ -49,7 +51,12 @@ const BirthdayMessageForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
     setIsSubmitting(true);
     try {
-      await submitBirthdayMessage(name, message, videoFile);
+      // Get the user's display name from Firestore
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+      const displayName = userData?.displayName || currentUser.email;
+
+      await submitBirthdayMessage(displayName, message, videoFile);
 
       toast({
         title: "Success!",
@@ -57,7 +64,6 @@ const BirthdayMessageForm = ({ onSuccess }: { onSuccess: () => void }) => {
       });
 
       // Reset form
-      setName("");
       setMessage("");
       setVideoFile(null);
 
@@ -76,13 +82,6 @@ const BirthdayMessageForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium mb-1">
-          Your Name *
-        </label>
-        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Enter your name" />
-      </div>
-
       <div>
         <label htmlFor="message" className="block text-sm font-medium mb-1">
           Message (optional)
