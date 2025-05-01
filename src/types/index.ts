@@ -248,6 +248,7 @@ export interface Costume {
   votes: {
     [key: string]: number;
   };
+  sequenceNumber: string; // 3-digit sequence number for ordering (e.g., "001", "002", etc.)
 }
 
 export interface Vote {

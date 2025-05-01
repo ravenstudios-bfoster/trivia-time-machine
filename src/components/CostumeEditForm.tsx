@@ -27,7 +27,7 @@ interface CostumeEditFormProps {
 }
 
 const CostumeEditForm = ({ costume, onClose, onUpdate }: CostumeEditFormProps) => {
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -44,7 +44,16 @@ const CostumeEditForm = ({ costume, onClose, onUpdate }: CostumeEditFormProps) =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || currentUser.uid !== costume.submittedBy) return;
+    if (!currentUser) {
+      toast.error("You must be logged in to edit costumes");
+      return;
+    }
+
+    // Only allow if user is admin or the costume submitter
+    if (!isAdmin && currentUser.uid !== costume.submittedBy) {
+      toast.error("You don't have permission to edit this costume");
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -73,7 +82,16 @@ const CostumeEditForm = ({ costume, onClose, onUpdate }: CostumeEditFormProps) =
   };
 
   const handleDelete = async () => {
-    if (!currentUser || currentUser.uid !== costume.submittedBy) return;
+    if (!currentUser) {
+      toast.error("You must be logged in to delete costumes");
+      return;
+    }
+
+    // Only allow if user is admin or the costume submitter
+    if (!isAdmin && currentUser.uid !== costume.submittedBy) {
+      toast.error("You don't have permission to delete this costume");
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -89,8 +107,15 @@ const CostumeEditForm = ({ costume, onClose, onUpdate }: CostumeEditFormProps) =
     }
   };
 
-  if (!currentUser || currentUser.uid !== costume.submittedBy) {
-    return null;
+  // Allow rendering if user is admin or the costume submitter
+  if (!currentUser || (!isAdmin && currentUser.uid !== costume.submittedBy)) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground">You don't have permission to edit this costume.</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

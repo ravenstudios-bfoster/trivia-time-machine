@@ -15,7 +15,7 @@ import { GameProvider } from "@/context/GameContext";
 import { AuthProvider } from "./context/AuthContext";
 import Home from "@/pages/Home";
 import Admin from "./pages/Admin";
-import CostumeGallery from "@/pages/CostumeGallery";
+import CostumeVoting from "@/pages/CostumeVoting";
 import PropsAndMemorabilia from "@/pages/PropsAndMemorabilia";
 import PropDetail from "./pages/PropDetail";
 import BirthdayMessages from "./pages/BirthdayMessages";
@@ -49,8 +49,17 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       : null,
   });
 
-  // First check authentication
-  if (!currentUser) {
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Only redirect if we're not loading and there's no user
+  if (!isLoading && !currentUser) {
     console.log("No current user, redirecting to home");
     return <Navigate to="/" replace state={{ from: location }} />;
   }
@@ -168,7 +177,7 @@ const App = () => (
                   path="/costume-voting"
                   element={
                     <ProtectedRoute>
-                      <CostumeGallery />
+                      <CostumeVoting />
                     </ProtectedRoute>
                   }
                 />

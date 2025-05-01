@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { serverTimestamp, setDoc } from "firebase/firestore";
 
 interface UserCostumeSubmissionProps {
   categories: CostumeCategory[];
@@ -20,26 +21,40 @@ export default function UserCostumeSubmission({ categories, onSuccess }: UserCos
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (currentUser) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setUserDisplayName(userData.displayName || null);
-          }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
+    const fetchOrCreateUserProfile = async () => {
+      if (!currentUser?.id) return;
+
+      try {
+        const userRef = doc(db, "users", currentUser.id);
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+          // Create user document if it doesn't exist
+          await setDoc(userRef, {
+            displayName: currentUser.displayName || "",
+            email: currentUser.email,
+            role: "participant",
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp(),
+            gamesParticipated: 0,
+          });
+          setUserDisplayName(currentUser.displayName || null);
+        } else {
+          const userData = userDoc.data();
+          setUserDisplayName(userData.displayName || null);
         }
+      } catch (error) {
+        console.error("Error with user profile:", error);
+        toast.error("Error loading user profile");
       }
     };
 
-    fetchUserProfile();
+    fetchOrCreateUserProfile();
   }, [currentUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) {
+    if (!currentUser?.id) {
       toast.error("Please sign in to submit a costume");
       return;
     }
@@ -52,22 +67,34 @@ export default function UserCostumeSubmission({ categories, onSuccess }: UserCos
     try {
       setIsLoading(true);
 
-      const path = `costumes/${currentUser.uid}/${Date.now()}-${file.name}`;
+      // Sanitize file name to prevent path traversal and invalid characters
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const path = `costumes/${currentUser.id}/${Date.now()}-${safeFileName}`;
       const photoUrl = await uploadFile(file, path);
 
       // Get all category tags
       const allCategoryTags = categories.map((category) => category.tag);
 
-      // Get the user's display name from Firestore
-      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-      const userData = userDoc.exists() ? userDoc.data() : null;
-      const displayName = userData?.displayName || currentUser.email;
+      // Get or create user document
+      const userRef = doc(db, "users", currentUser.id);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          displayName: currentUser.displayName || "",
+          email: currentUser.email,
+          role: "participant",
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          gamesParticipated: 0,
+        });
+      }
 
       await createCostume({
         characterName: characterName.trim(),
         photoUrl,
-        submittedBy: currentUser.uid,
-        submitterName: displayName,
+        submittedBy: currentUser.id,
+        submitterName: currentUser.displayName || currentUser.email || "Anonymous",
         categories: allCategoryTags,
       });
 
@@ -83,11 +110,31 @@ export default function UserCostumeSubmission({ categories, onSuccess }: UserCos
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      // Validate file type
+      if (!selectedFile.type.startsWith("image/")) {
+        toast.error("Please select an image file");
+        return;
+      }
+      // Validate file size (e.g., 5MB limit)
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        toast.error("File size must be less than 5MB");
+        return;
+      }
+      setFile(selectedFile);
+    } else {
+      setFile(null);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="costumePhoto">Costume Photo</Label>
-        <Input id="costumePhoto" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} disabled={isLoading} />
+        <Input id="costumePhoto" type="file" accept="image/*" onChange={handleFileChange} disabled={isLoading} />
+        <p className="text-xs text-muted-foreground">Maximum file size: 5MB. Supported formats: JPG, PNG, GIF</p>
       </div>
 
       <div className="space-y-2">

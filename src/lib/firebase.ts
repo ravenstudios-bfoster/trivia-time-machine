@@ -707,8 +707,18 @@ export const createOrUpdateUser = async (userData: AppUser): Promise<void> => {
 };
 
 // Costume functions
-export const createCostume = async (costumeData: Omit<Costume, "id" | "createdAt" | "votes">): Promise<string> => {
+export const createCostume = async (costumeData: Omit<Costume, "id" | "createdAt" | "votes" | "sequenceNumber">): Promise<string> => {
   try {
+    // Get all costumes to determine the next sequence number
+    const snapshot = await getDocs(query(costumesCollection, orderBy("sequenceNumber", "desc"), limit(1)));
+    let nextSequenceNumber = "001";
+
+    if (!snapshot.empty) {
+      const lastCostume = snapshot.docs[0].data();
+      const lastNumber = parseInt(lastCostume.sequenceNumber || "0", 10);
+      nextSequenceNumber = (lastNumber + 1).toString().padStart(3, "0");
+    }
+
     // Initialize votes object based on the costume's categories
     const initialVotes: { [key: string]: number } = {};
     if (costumeData.categories && Array.isArray(costumeData.categories)) {
@@ -719,9 +729,11 @@ export const createCostume = async (costumeData: Omit<Costume, "id" | "createdAt
 
     const newCostume = {
       ...costumeData,
-      votes: initialVotes, // Use dynamically generated initial votes
+      votes: initialVotes,
       createdAt: Timestamp.now(),
+      sequenceNumber: nextSequenceNumber,
     };
+
     const docRef = await addDoc(costumesCollection, newCostume);
     return docRef.id;
   } catch (error) {
@@ -731,7 +743,7 @@ export const createCostume = async (costumeData: Omit<Costume, "id" | "createdAt
 };
 
 export const getCostumes = async (): Promise<Costume[]> => {
-  const snapshot = await getDocs(costumesCollection);
+  const snapshot = await getDocs(query(costumesCollection, orderBy("sequenceNumber", "asc")));
   return snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
