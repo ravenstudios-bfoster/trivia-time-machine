@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/
 import { Layout } from "@/components/ui/Layout";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Clock } from "lucide-react";
+import { Clock, HelpCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Badge } from "@/components/ui/badge";
 
 export default function CostumeVoting() {
   const { currentUser } = useAuth();
@@ -42,17 +44,10 @@ export default function CostumeVoting() {
 
       if (votingWindowData) {
         const now = new Date();
-        if (votingWindowData.startDateTime && votingWindowData.endDateTime) {
-          const startTime = votingWindowData.startDateTime.toDate();
-          const endTime = votingWindowData.endDateTime.toDate();
-          setIsVotingOpen(now >= startTime && now <= endTime);
-        } else if (votingWindowData.startTime && votingWindowData.endTime) {
-          const [startHour, startMinute] = votingWindowData.startTime.split(":").map(Number);
-          const [endHour, endMinute] = votingWindowData.endTime.split(":").map(Number);
-          const startTime = new Date();
-          startTime.setHours(startHour, startMinute, 0, 0);
-          const endTime = new Date();
-          endTime.setHours(endHour, endMinute, 0, 0);
+        const startTime = votingWindowData.startDateTime ? new Date(votingWindowData.startDateTime) : null;
+        const endTime = votingWindowData.endDateTime ? new Date(votingWindowData.endDateTime) : null;
+
+        if (startTime && endTime) {
           setIsVotingOpen(now >= startTime && now <= endTime);
         }
       }
@@ -69,6 +64,11 @@ export default function CostumeVoting() {
   }, [currentUser]);
 
   const handleVote = async () => {
+    if (!isVotingOpen) {
+      toast.error(getVotingMessage());
+      return;
+    }
+
     if (currentUser) {
       const updatedVotes = await getUserVotes(currentUser.uid);
       setUserVotes(updatedVotes);
@@ -76,17 +76,40 @@ export default function CostumeVoting() {
   };
 
   const getVotingMessage = () => {
-    if (!votingWindow) return null;
-    let message = votingWindow.message || "";
+    if (!votingWindow) return "Voting window not configured";
+    let message = votingWindow.message || "Voting will start at {time}";
+
     if (votingWindow.startDateTime) {
-      const startTime = format(votingWindow.startDateTime.toDate(), "h:mm a");
-      message = message.replace("{time}", startTime);
-    } else if (votingWindow.startTime) {
-      const [hour, minute] = votingWindow.startTime.split(":").map(Number);
-      const time = format(new Date().setHours(hour, minute), "h:mm a");
-      message = message.replace("{time}", time);
+      const startTime = new Date(votingWindow.startDateTime);
+      const formattedTime = format(startTime, "MMMM do, yyyy 'at' h:mm a 'CST'");
+      message = message.replace("{time}", formattedTime);
     }
+
     return message;
+  };
+
+  const getVotingStatus = () => {
+    if (!votingWindow?.startDateTime) return null;
+    const now = new Date();
+    const startTime = new Date(votingWindow.startDateTime);
+    const endTime = votingWindow.endDateTime ? new Date(votingWindow.endDateTime) : null;
+
+    if (now < startTime) {
+      return {
+        label: "Not Started",
+        variant: "secondary" as const,
+      };
+    } else if (endTime && now > endTime) {
+      return {
+        label: "Ended",
+        variant: "destructive" as const,
+      };
+    } else {
+      return {
+        label: "Open",
+        className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 hover:bg-green-100/80 dark:hover:bg-green-900/80",
+      };
+    }
   };
 
   const handleSubmitSuccess = () => {
@@ -94,19 +117,28 @@ export default function CostumeVoting() {
     fetchData();
   };
 
+  const votingStatus = getVotingStatus();
+
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col gap-6">
+      <div className="container mx-auto px-4 py-4 sm:py-8">
+        <div className="flex flex-col gap-4 sm:gap-6">
           {!isVotingOpen && votingWindow && (
-            <div className="bg-secondary/50 border border-secondary rounded-lg p-4 flex items-center gap-2">
+            <div className="bg-secondary/50 border border-secondary rounded-lg p-3 sm:p-4 flex items-center gap-2">
               <Clock className="h-5 w-5 text-muted-foreground" />
-              <p className="text-muted-foreground">{getVotingMessage()}</p>
+              <p className="text-muted-foreground text-sm sm:text-base">{getVotingMessage()}</p>
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Costume Voting</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold">Costume Voting</h1>
+              {votingStatus && (
+                <Badge variant={votingStatus.variant as "secondary" | "destructive" | undefined} className={votingStatus.className}>
+                  {votingStatus.label}
+                </Badge>
+              )}
+            </div>
             <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
               <DialogTrigger asChild>
                 <Button>Submit Your Costume</Button>
@@ -120,38 +152,55 @@ export default function CostumeVoting() {
 
           {/* Instructions Section */}
           {instructions ? (
-            <div className="bg-secondary/10 rounded-lg px-4 py-3 mb-4">
-              <div className="text-foreground text-base">{instructions.instructions}</div>
+            <div className="bg-secondary/10 rounded-lg px-3 py-2 sm:px-4 sm:py-3">
+              <p className="text-sm text-muted-foreground">{instructions.instructions}</p>
             </div>
           ) : (
-            <div className="bg-secondary/10 rounded-lg px-4 py-3 mb-4">
-              <div className="text-foreground text-base">Loading instructions...</div>
+            <div className="bg-secondary/10 rounded-lg px-3 py-2 sm:px-4 sm:py-3">
+              <div className="text-sm sm:text-base">Loading instructions...</div>
             </div>
           )}
 
           {/* Categories Section */}
-          <div className="grid gap-4 md:grid-cols-2">
-            {categories.map((category) => (
-              <Card key={category.id} className="bg-secondary/10">
-                <CardContent className="p-4">
-                  <h3 className="text-lg font-semibold mb-1">{category.name}</h3>
-                  <p className="text-sm text-muted-foreground">{category.description}</p>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="space-y-2 sm:space-y-3">
+            <div className="grid gap-2 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {categories.map((category) => (
+                <div key={category.id} className="flex items-center gap-2 bg-secondary/5 rounded-lg p-2 sm:p-3 hover:bg-secondary/10 transition-colors">
+                  <span className="font-medium text-sm sm:text-base">{category.name}</span>
+                  <HoverCard openDelay={0} closeDelay={0}>
+                    <HoverCardTrigger asChild>
+                      <Button variant="ghost" className="p-0 h-auto hover:bg-transparent focus:ring-0">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                      </Button>
+                    </HoverCardTrigger>
+                    <HoverCardContent side="right" align="start" className="max-w-[250px] text-sm bg-popover p-3">
+                      {category.description}
+                    </HoverCardContent>
+                  </HoverCard>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Costume Grid */}
           {isLoading ? (
-            <div className="flex justify-center items-center min-h-[400px]">
+            <div className="flex justify-center items-center min-h-[300px] sm:min-h-[400px]">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
           ) : costumes.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {costumes.map((costume) => (
                 <Dialog key={costume.id}>
                   <DialogTrigger asChild>
-                    <button className="w-full text-left focus:outline-none focus:ring-2 focus:ring-primary rounded-lg overflow-hidden">
+                    <button
+                      className="w-full text-left focus:outline-none focus:ring-2 focus:ring-primary rounded-lg overflow-hidden"
+                      onClick={(e) => {
+                        if (!isVotingOpen) {
+                          e.preventDefault();
+                          toast.error(getVotingMessage());
+                        }
+                      }}
+                    >
                       <div className="aspect-square relative bg-secondary/10 rounded-lg p-2">
                         <img
                           src={costume.photoUrl}
@@ -183,24 +232,9 @@ export default function CostumeVoting() {
                           {categories.map((category) => {
                             const hasVoted = userVotes.some((vote) => vote.costumeId === costume.id && vote.category === category.tag);
                             return (
-                              <Button
-                                key={category.id}
-                                onClick={() => {
-                                  handleVote();
-                                  // Close dialog after voting
-                                  const dialogElement = document.querySelector('[role="dialog"]');
-                                  if (dialogElement) {
-                                    const closeButton = dialogElement.querySelector('[aria-label="Close"]');
-                                    if (closeButton instanceof HTMLElement) {
-                                      closeButton.click();
-                                    }
-                                  }
-                                }}
-                                disabled={!isVotingOpen || !currentUser || hasVoted}
-                                variant={hasVoted ? "secondary" : "default"}
-                                className="w-full h-auto min-h-[44px] whitespace-normal py-2 px-3 text-sm"
-                              >
-                                {hasVoted ? <span className="line-clamp-2">Voted for {category.name}</span> : <span className="line-clamp-2">Vote for {category.name}</span>}
+                              <Button key={category.id} variant={hasVoted ? "secondary" : "default"} className="w-full justify-start" disabled={hasVoted || !isVotingOpen} onClick={() => handleVote()}>
+                                {category.name}
+                                {hasVoted && <span className="ml-auto">✓</span>}
                               </Button>
                             );
                           })}
@@ -212,10 +246,7 @@ export default function CostumeVoting() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <h3 className="text-xl font-semibold mb-2">No costumes found</h3>
-              <p className="text-muted-foreground">Be the first to submit a costume!</p>
-            </div>
+            <div className="text-center text-muted-foreground py-6 sm:py-8">No costumes submitted yet.</div>
           )}
         </div>
       </div>

@@ -818,7 +818,7 @@ export const getUserVotes = async (userId: string | undefined | null): Promise<V
 // Costume Category functions
 export const getCostumeCategories = async (): Promise<CostumeCategory[]> => {
   try {
-    const snapshot = await getDocs(collection(db, "costumeCategory"));
+    const snapshot = await getDocs(query(collection(db, "costumeCategory"), orderBy("sortOrder", "asc")));
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -833,10 +833,21 @@ export const getCostumeCategories = async (): Promise<CostumeCategory[]> => {
 export const createCostumeCategory = async (categoryData: Omit<CostumeCategory, "id" | "createdAt">): Promise<string> => {
   try {
     const categoriesRef = collection(db, "costumeCategory");
+
+    // Get the highest existing sortOrder
+    const snapshot = await getDocs(query(categoriesRef, orderBy("sortOrder", "desc"), limit(1)));
+    let nextSortOrder = 1;
+
+    if (!snapshot.empty) {
+      const lastCategory = snapshot.docs[0].data();
+      nextSortOrder = (lastCategory.sortOrder || 0) + 1;
+    }
+
     const newCategory = {
       ...categoryData,
       tag: categoryData.tag.toLowerCase().replace(/\s+/g, ""), // Ensure tag is lowercase and no spaces
       createdAt: serverTimestamp(),
+      sortOrder: nextSortOrder,
     };
     const docRef = await addDoc(categoriesRef, newCategory);
     return docRef.id;
@@ -868,6 +879,16 @@ export const deleteCostumeCategory = async (categoryId: string): Promise<void> =
   } catch (error) {
     console.error("Error deleting costume category:", error);
     throw new Error("Failed to delete costume category");
+  }
+};
+
+export const updateCostumeCategoryOrder = async (categoryId: string, newSortOrder: number): Promise<void> => {
+  try {
+    const categoryRef = doc(db, "costumeCategory", categoryId);
+    await updateDoc(categoryRef, { sortOrder: newSortOrder });
+  } catch (error) {
+    console.error("Error updating costume category order:", error);
+    throw new Error("Failed to update costume category order");
   }
 };
 
@@ -993,7 +1014,7 @@ export { auth, db, storage, createUserWithEmailAndPassword, signInWithEmailAndPa
 export type { Costume };
 
 export const getVotingWindow = async (): Promise<VotingWindow | null> => {
-  const votingWindowRef = doc(db, "votingWindow", "current");
+  const votingWindowRef = doc(db, "config", "votingWindow");
   const docSnap = await getDoc(votingWindowRef);
 
   if (!docSnap.exists()) {
@@ -1003,8 +1024,8 @@ export const getVotingWindow = async (): Promise<VotingWindow | null> => {
   const data = docSnap.data();
   return {
     ...data,
-    startDateTime: data.startDateTime instanceof Timestamp ? data.startDateTime.toDate() : null,
-    endDateTime: data.endDateTime instanceof Timestamp ? data.endDateTime.toDate() : null,
+    startDateTime: data.startDateTime instanceof Timestamp ? data.startDateTime.toDate() : data.startDateTime,
+    endDateTime: data.endDateTime instanceof Timestamp ? data.endDateTime.toDate() : data.endDateTime,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(),
   } as VotingWindow;
 };

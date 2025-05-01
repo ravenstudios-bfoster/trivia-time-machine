@@ -289,6 +289,7 @@ export interface CostumeCategory {
   name: string;
   description: string;
   createdAt: Date;
+  sortOrder: number;
 }
 
 export interface VotingWindow {
