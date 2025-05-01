@@ -96,6 +96,7 @@ const AdminProps = lazy(() => import("@/pages/admin/Props"));
 const PropForm = lazy(() => import("@/pages/admin/PropForm"));
 const AdminCostumes = lazy(() => import("./pages/admin/Costumes"));
 const AdminCostumeCategories = lazy(() => import("./pages/admin/CostumeCategories"));
+const AdminLeaderboard = lazy(() => import("./pages/admin/Leaderboard"));
 
 const queryClient = new QueryClient();
 
@@ -171,6 +172,7 @@ const App = () => (
                 <Route path="/admin/props/:propId/edit" element={<PropForm />} />
                 <Route path="/admin/costumes" element={<AdminCostumes />} />
                 <Route path="/admin/costume-categories" element={<AdminCostumeCategories />} />
+                <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
 
                 {/* Protected Feature Routes */}
                 <Route

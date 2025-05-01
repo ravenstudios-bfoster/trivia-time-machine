@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getCostumes, getUserVotes, getCostumeCategories, getVotingWindow, getCostumeInstructions } from "@/lib/firebase";
+import { getCostumes, getUserVotes, getCostumeCategories, getVotingWindow, getCostumeInstructions, castVote, removeVote } from "@/lib/firebase";
 import { Costume, Vote, CostumeCategory, VotingWindow, CostumeInstructions } from "@/types";
 import CostumeCard from "@/components/CostumeCard";
 import UserCostumeSubmission from "@/components/UserCostumeSubmission";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Layout } from "@/components/ui/Layout";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -14,8 +14,34 @@ import { Card, CardContent } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
 
+// Add this type for the change vote dialog
+interface ChangeVoteDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  categoryName: string;
+}
+
+// Add the ChangeVoteDialog component
+function ChangeVoteDialog({ isOpen, onClose, onConfirm, categoryName }: ChangeVoteDialogProps) {
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogTitle>Change Your Vote?</DialogTitle>
+        <DialogDescription>You have already selected another costume in this category, do you want to change your vote to this costume instead?</DialogDescription>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm}>Change Vote</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function CostumeVoting() {
-  const { currentUser } = useAuth();
+  const { currentUser, isLoading: isAuthLoading } = useAuth();
   const [costumes, setCostumes] = useState<Costume[]>([]);
   const [userVotes, setUserVotes] = useState<Vote[]>([]);
   const [categories, setCategories] = useState<CostumeCategory[]>([]);
@@ -26,12 +52,25 @@ export default function CostumeVoting() {
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [instructions, setInstructions] = useState<CostumeInstructions | null>(null);
 
+  // Add state for change vote dialog
+  const [changeVoteDialog, setChangeVoteDialog] = useState<{
+    isOpen: boolean;
+    costumeId: string;
+    category: string;
+    categoryName: string;
+  }>({
+    isOpen: false,
+    costumeId: "",
+    category: "",
+    categoryName: "",
+  });
+
   const fetchData = async () => {
     try {
       setIsLoading(true);
       const [fetchedCostumes, fetchedVotes, fetchedCategories, votingWindowData, instructionsData] = await Promise.all([
         getCostumes(),
-        currentUser ? getUserVotes(currentUser.uid) : Promise.resolve([]),
+        currentUser ? getUserVotes(currentUser.id) : Promise.resolve([]),
         getCostumeCategories(),
         getVotingWindow(),
         getCostumeInstructions(),
@@ -60,18 +99,55 @@ export default function CostumeVoting() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [currentUser]);
+    // Only fetch data once auth state is initialized
+    if (!isAuthLoading) {
+      fetchData();
+    }
+  }, [currentUser, isAuthLoading]);
 
-  const handleVote = async () => {
+  const handleVote = async (costumeId: string, category: string) => {
+    console.log("Vote attempt:", {
+      isVotingOpen,
+      currentUser: currentUser?.id,
+      costumeId,
+      category,
+    });
+
     if (!isVotingOpen) {
       toast.error(getVotingMessage());
       return;
     }
 
-    if (currentUser) {
-      const updatedVotes = await getUserVotes(currentUser.uid);
+    if (!currentUser) {
+      toast.error("Please sign in to vote");
+      return;
+    }
+
+    // Check if this is the user's own submission
+    const costume = costumes.find((c) => c.id === costumeId);
+    if (costume && costume.submittedBy === currentUser.id) {
+      toast.error("You cannot vote on your own submission");
+      return;
+    }
+
+    // Check if user has already voted in this category
+    const existingVote = userVotes.find((vote) => vote.category === category);
+    if (existingVote) {
+      // If they've voted for a different costume in this category
+      if (existingVote.costumeId !== costumeId) {
+        handleVoteChange(costumeId, category, categories.find((c) => c.tag === category)?.name || category);
+      }
+      return;
+    }
+
+    try {
+      await castVote(currentUser.id, costumeId, category);
+      const updatedVotes = await getUserVotes(currentUser.id);
       setUserVotes(updatedVotes);
+      toast.success("Vote recorded successfully!");
+    } catch (error) {
+      console.error("Voting error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to cast vote");
     }
   };
 
@@ -115,6 +191,44 @@ export default function CostumeVoting() {
   const handleSubmitSuccess = () => {
     setIsSubmitDialogOpen(false);
     fetchData();
+  };
+
+  const handleVoteChange = async (costumeId: string, category: string, categoryName: string) => {
+    // Find the existing vote in this category (might be for a different costume)
+    const existingVote = userVotes.find((vote) => vote.category === category);
+    if (!existingVote) return; // This shouldn't happen given our button logic
+
+    setChangeVoteDialog({
+      isOpen: true,
+      costumeId,
+      category,
+      categoryName,
+    });
+  };
+
+  const handleVoteChangeConfirm = async () => {
+    if (!currentUser || !changeVoteDialog.costumeId || !changeVoteDialog.category) return;
+
+    try {
+      // Find the existing vote in this category
+      const existingVote = userVotes.find((vote) => vote.category === changeVoteDialog.category);
+      if (existingVote) {
+        // Remove the old vote
+        await removeVote(currentUser.id, existingVote.costumeId, changeVoteDialog.category);
+      }
+      // Cast the new vote
+      await castVote(currentUser.id, changeVoteDialog.costumeId, changeVoteDialog.category);
+
+      // Refresh votes and costumes
+      const [updatedVotes, updatedCostumes] = await Promise.all([getUserVotes(currentUser.id), getCostumes()]);
+      setUserVotes(updatedVotes);
+      setCostumes(updatedCostumes);
+      toast.success("Vote changed successfully!");
+      setChangeVoteDialog((prev) => ({ ...prev, isOpen: false }));
+    } catch (error) {
+      console.error("Error changing vote:", error);
+      toast.error("Failed to change vote");
+    }
   };
 
   const votingStatus = getVotingStatus();
@@ -215,6 +329,7 @@ export default function CostumeVoting() {
                     </button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                    <DialogTitle>{costume.characterName}</DialogTitle>
                     <div className="flex flex-col gap-4">
                       <div className="relative aspect-square bg-secondary/10 rounded-lg">
                         <img
@@ -228,17 +343,44 @@ export default function CostumeVoting() {
                       </div>
                       <div className="space-y-4">
                         <h2 className="text-xl font-semibold">{costume.characterName}</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {categories.map((category) => {
-                            const hasVoted = userVotes.some((vote) => vote.costumeId === costume.id && vote.category === category.tag);
-                            return (
-                              <Button key={category.id} variant={hasVoted ? "secondary" : "default"} className="w-full justify-start" disabled={hasVoted || !isVotingOpen} onClick={() => handleVote()}>
-                                {category.name}
-                                {hasVoted && <span className="ml-auto">✓</span>}
-                              </Button>
-                            );
-                          })}
-                        </div>
+                        {(() => {
+                          const isOwnSubmission = currentUser?.id === costume.submittedBy;
+                          return (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {isOwnSubmission ? (
+                                <div className="col-span-full text-center p-4 bg-secondary/10 rounded-lg">
+                                  <p className="text-muted-foreground">This is your costume submission</p>
+                                </div>
+                              ) : (
+                                categories.map((category) => {
+                                  const hasVoted = userVotes.some((vote) => vote.costumeId === costume.id && vote.category === category.tag);
+                                  const hasVotedForThisCostume = userVotes.some((vote) => vote.category === category.tag && vote.costumeId === costume.id);
+                                  console.log("Voting button state:", {
+                                    category: category.name,
+                                    costumeId: costume.id,
+                                    hasVoted,
+                                    isOwnSubmission,
+                                    currentUserId: currentUser?.id,
+                                    submittedBy: costume.submittedBy,
+                                  });
+                                  return (
+                                    <Button
+                                      key={category.id}
+                                      variant={hasVoted ? "secondary" : "default"}
+                                      className="w-full justify-start"
+                                      disabled={!isVotingOpen}
+                                      onClick={() => handleVote(costume.id, category.tag)}
+                                    >
+                                      {category.name}
+                                      {hasVoted && hasVotedForThisCostume && <span className="ml-auto">✓</span>}
+                                      {hasVoted && !hasVotedForThisCostume && <span className="ml-auto text-muted-foreground">(Vote for this instead?)</span>}
+                                    </Button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </DialogContent>
@@ -250,6 +392,14 @@ export default function CostumeVoting() {
           )}
         </div>
       </div>
+
+      {/* Add the ChangeVoteDialog component */}
+      <ChangeVoteDialog
+        isOpen={changeVoteDialog.isOpen}
+        onClose={() => setChangeVoteDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={handleVoteChangeConfirm}
+        categoryName={changeVoteDialog.categoryName}
+      />
     </Layout>
   );
 }

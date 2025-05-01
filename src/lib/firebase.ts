@@ -1080,3 +1080,32 @@ export const hasUserPlayedGame = async (gameId: string, userId: string): Promise
     return false;
   }
 };
+
+export const removeVote = async (userId: string, costumeId: string, category: string): Promise<void> => {
+  try {
+    const votesRef = collection(db, "votes");
+    const voteQuery = query(votesRef, where("userId", "==", userId), where("costumeId", "==", costumeId), where("category", "==", category));
+    const voteSnapshot = await getDocs(voteQuery);
+
+    if (voteSnapshot.empty) {
+      throw new Error("Vote not found");
+    }
+
+    const batch = writeBatch(db);
+    const voteDoc = voteSnapshot.docs[0];
+    const costumeRef = doc(db, "costumes", costumeId);
+
+    // Delete the vote document
+    batch.delete(doc(db, "votes", voteDoc.id));
+
+    // Decrement vote count for the category
+    batch.update(costumeRef, {
+      [`votes.${category}`]: increment(-1),
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error("Error removing vote:", error);
+    throw error;
+  }
+};
