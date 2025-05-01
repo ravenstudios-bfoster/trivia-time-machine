@@ -304,6 +304,12 @@ export interface VotingWindow {
   updatedAt?: Date;
 }
 
+export interface CostumeInstructions {
+  instructions: string;
+  createdAt: Timestamp;
+  modifiedAt: Timestamp;
+}
+
 export type Answer = {
   id: string;
   questionId: string;

@@ -58,6 +58,7 @@ import {
   VotingWindow,
   Level,
   Answer,
+  CostumeInstructions,
 } from "@/types";
 
 // Your web app's Firebase configuration
@@ -123,6 +124,7 @@ export const votesCollection = collection(db, "votes");
 export const usersCollection = collection(db, "users");
 export const birthdayMessagesCollection = collection(db, "birthday-messages");
 export const propsCollection = collection(db, "props") as CollectionReference<Omit<Prop, "id">>;
+export const configCollection = collection(db, "config");
 
 // Authentication functions
 export const loginWithEmail = async (email: string, password: string) => {
@@ -927,6 +929,48 @@ export const deleteProp = async (propId: string): Promise<void> => {
   } catch (error) {
     console.error("Error deleting prop:", error);
     throw new Error("Failed to delete prop");
+  }
+};
+
+// Costume Instructions functions
+export const getCostumeInstructions = async (): Promise<CostumeInstructions | null> => {
+  try {
+    console.log("Getting costume instructions from Firebase...");
+    const docRef = doc(db, "config", "costumeInstructions");
+    const docSnap = await getDoc(docRef);
+    console.log("Raw costume instructions data:", docSnap.data());
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        instructions: data.instructions,
+        createdAt: data.createdAt,
+        modifiedAt: data.modifiedAt,
+      };
+    }
+    console.log("No costume instructions found");
+    return null;
+  } catch (error) {
+    console.error("Error fetching costume instructions:", error);
+    return null;
+  }
+};
+
+export const updateCostumeInstructions = async (instructions: string): Promise<void> => {
+  try {
+    const docRef = doc(configCollection, "costumeInstructions");
+    await setDoc(
+      docRef,
+      {
+        instructions,
+        modifiedAt: serverTimestamp(),
+        createdAt: serverTimestamp(), // This will only be set on first creation
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    console.error("Error updating costume instructions:", error);
+    throw new Error("Failed to update costume instructions");
   }
 };
 

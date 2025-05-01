@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "@/components/AdminLayout";
-import { getCostumes, getCostumeCategories, deleteCostume, updateCostume, type Costume, getVotingWindow } from "@/lib/firebase";
-import { CostumeCategory, VotingWindow } from "@/types";
+import { getCostumes, getCostumeCategories, deleteCostume, updateCostume, type Costume, getVotingWindow, getCostumeInstructions, updateCostumeInstructions } from "@/lib/firebase";
+import { CostumeCategory, VotingWindow, CostumeInstructions } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { MoreHorizontal, Trash2, RotateCcw, Edit, Loader2, Clock } from "lucide-react";
+import { MoreHorizontal, Trash2, RotateCcw, Edit, Loader2, Clock, Edit2, Save, X } from "lucide-react";
 import { format, isValid, parse, parseISO } from "date-fns";
 import { doc, updateDoc, serverTimestamp, Timestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -61,49 +61,42 @@ const AdminCostumes = () => {
   // Voting window state with separate date and time
   const [votingWindow, setVotingWindow] = useState<VotingWindow>({
     startDate: getTodayDate(),
-    startTime: "19:00",
+    startTime: "00:00",
     endDate: getTodayDate(),
-    endTime: "19:45",
-    message: "Voting will open at {time}",
+    endTime: "23:59",
+    message: "",
   });
   const [isEditingVotingWindow, setIsEditingVotingWindow] = useState(false);
+
+  const [instructions, setInstructions] = useState<CostumeInstructions | null>(null);
+  const [isEditingInstructions, setIsEditingInstructions] = useState(false);
+  const [editedInstructions, setEditedInstructions] = useState("");
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [costumesData, categoriesData, votingWindowData] = await Promise.all([getCostumes(), getCostumeCategories(), getVotingWindow()]);
+      const [costumesData, categoriesData, votingWindowData, instructionsData] = await Promise.all([getCostumes(), getCostumeCategories(), getVotingWindow(), getCostumeInstructions()]);
       setCostumes(costumesData);
       setCategories(categoriesData);
 
       if (votingWindowData) {
-        if (votingWindowData.startDateTime && votingWindowData.endDateTime) {
-          // Convert Firebase Timestamp to local Date
-          const startDateTime = votingWindowData.startDateTime.toDate();
-          const endDateTime = votingWindowData.endDateTime.toDate();
+        setVotingWindow({
+          startDate: format(votingWindowData.startDateTime || new Date(), "yyyy-MM-dd"),
+          startTime: format(votingWindowData.startDateTime || new Date(), "HH:mm"),
+          endDate: format(votingWindowData.endDateTime || new Date(), "yyyy-MM-dd"),
+          endTime: format(votingWindowData.endDateTime || new Date(), "HH:mm"),
+          message: votingWindowData.message || "",
+        });
+      }
 
-          setVotingWindow({
-            startDate: format(startDateTime, "yyyy-MM-dd"),
-            startTime: format(startDateTime, "HH:mm"),
-            endDate: format(endDateTime, "yyyy-MM-dd"),
-            endTime: format(endDateTime, "HH:mm"),
-            message: votingWindowData.message,
-          });
-        } else if (votingWindowData.startTime && votingWindowData.endTime) {
-          // Old format with just times
-          const today = getTodayDate();
-          setVotingWindow({
-            startDate: today,
-            startTime: votingWindowData.startTime,
-            endDate: today,
-            endTime: votingWindowData.endTime,
-            message: votingWindowData.message,
-          });
-        }
+      if (instructionsData) {
+        setInstructions(instructionsData);
+        setEditedInstructions(instructionsData.instructions);
       }
     } catch (err) {
       console.error("Error fetching data:", err);
-      setError("Failed to load data. Please try again.");
+      setError("Failed to load data");
       toast.error("Failed to load data");
     } finally {
       setIsLoading(false);
@@ -259,271 +252,324 @@ const AdminCostumes = () => {
     }
   };
 
+  const handleSaveInstructions = async () => {
+    try {
+      await updateCostumeInstructions(editedInstructions);
+      const updatedInstructions = await getCostumeInstructions();
+      setInstructions(updatedInstructions);
+      setIsEditingInstructions(false);
+      toast.success("Instructions updated successfully");
+    } catch (error) {
+      console.error("Error updating instructions:", error);
+      toast.error("Failed to update instructions");
+    }
+  };
+
   return (
     <AdminLayout title="Manage Costumes" subtitle="View, delete costumes, and manage votes." breadcrumbs={[{ label: "Costumes", href: "/admin/costumes" }]}>
-      <div className="mb-6 p-4 bg-[#222] rounded-md border border-[#333]">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-[#ccc]" />
-            <h3 className="text-lg font-semibold text-[#ccc]">Voting Window</h3>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setIsEditingVotingWindow(true)}>
-            Edit Window
-          </Button>
-        </div>
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          <div>
-            <p className="text-[#666]">Start</p>
-            <p className="text-[#ccc]">{formatDateTime(combineDateAndTime(votingWindow.startDate, votingWindow.startTime))}</p>
-          </div>
-          <div>
-            <p className="text-[#666]">End</p>
-            <p className="text-[#ccc]">{formatDateTime(combineDateAndTime(votingWindow.endDate, votingWindow.endTime))}</p>
-          </div>
-          <div>
-            <p className="text-[#666]">Message</p>
-            <p className="text-[#ccc]">{votingWindow.message}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-md border border-[#333] bg-[#111]">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b-[#333]">
-              <TableHead className="w-[100px] text-white">Image</TableHead>
-              <TableHead className="text-white">Character Name</TableHead>
-              <TableHead className="text-white">Categories</TableHead>
-              <TableHead className="text-white">Submitter</TableHead>
-              <TableHead className="text-white">Created</TableHead>
-              <TableHead className="text-white">Votes</TableHead>
-              <TableHead className="text-right text-white">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-[#666]">
-                  <Loader2 className="h-6 w-6 animate-spin inline-block" /> Loading costumes...
-                </TableCell>
-              </TableRow>
-            ) : costumes.length > 0 ? (
-              costumes.map((costume) => {
-                const createdAtDate = costume.createdAt;
-                const formattedDate = createdAtDate && isValid(createdAtDate) ? format(createdAtDate, "PPpp") : "N/A";
-                const isResetting = isProcessing === `reset_${costume.id}`;
-                const isDeleting = isProcessing === `delete_${costume.id}`;
-                const isEditingCat = isProcessing === `edit_cat_${costume.id}`;
-                const currentProcessing = isResetting || isDeleting || isEditingCat;
-
-                return (
-                  <TableRow key={costume.id} className="border-b-[#333]">
-                    <TableCell>
-                      {costume.photoUrl ? (
-                        <img src={costume.photoUrl} alt={costume.characterName} className="h-10 w-10 object-cover rounded-sm" />
-                      ) : (
-                        <div className="h-10 w-10 bg-[#222] rounded-sm flex items-center justify-center text-[#666] text-xs">No Img</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium text-[#ccc]">{costume.characterName}</TableCell>
-                    <TableCell className="text-[#ccc]">{(costume.categories || []).map((tag) => getCategoryName(tag)).join(", ") || <span className="text-xs text-[#666]">None</span>}</TableCell>
-                    <TableCell className="text-[#ccc]">{costume.submitterName}</TableCell>
-                    <TableCell className="text-[#ccc]">{formattedDate}</TableCell>
-                    <TableCell className="text-[#ccc]">
-                      {costume.categories && costume.categories.length > 0 ? (
-                        Object.entries(costume.votes || {})
-                          .filter(([tag]) => costume.categories!.includes(tag))
-                          .map(([tag, count]) => (
-                            <div key={tag} className="text-xs">
-                              {getCategoryName(tag)}: {count}
-                            </div>
-                          ))
-                      ) : (
-                        <span className="text-xs text-[#666]">N/A</span>
-                      )}
-                      {costume.categories && costume.categories.length > 0 && Object.keys(costume.votes || {}).length === 0 && <span className="text-xs text-[#666]">No votes yet</span>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={currentProcessing}>
-                            {currentProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleOpenEditCategoriesDialog(costume)} disabled={isEditingCat}>
-                            {isEditingCat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />} Edit Categories
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleResetVotes(costume)} disabled={isResetting}>
-                            {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />} Reset Votes
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => openDeleteDialog(costume)} disabled={isDeleting} className="text-red-600">
-                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Delete Costume
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+      <div className="container mx-auto px-4 py-8">
+        {/* Costume Instructions Section - Moved above Voting Window */}
+        <div className="bttf-card p-6 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-primary">Costume Voting Instructions</h2>
+            {!isEditingInstructions ? (
+              <Button variant="outline" size="sm" onClick={() => setIsEditingInstructions(true)}>
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit Instructions
+              </Button>
             ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-[#666]">
-                  No costumes found.
-                </TableCell>
-              </TableRow>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setIsEditingInstructions(false)}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button variant="default" size="sm" onClick={handleSaveInstructions}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save
+                </Button>
+              </div>
             )}
-          </TableBody>
-        </Table>
+          </div>
+
+          {isEditingInstructions ? (
+            <textarea
+              value={editedInstructions}
+              onChange={(e) => setEditedInstructions(e.target.value)}
+              className="w-full h-48 p-4 bg-black/50 border border-primary/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="Enter instructions for costume voting..."
+            />
+          ) : (
+            <div className="prose prose-invert max-w-none">
+              <p className="text-foreground text-lg whitespace-pre-wrap">{instructions?.instructions || "No instructions set yet."}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Voting Window Section */}
+        <div className="mb-6 p-4 bg-[#222] rounded-md border border-[#333]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-[#ccc]" />
+              <h3 className="text-lg font-semibold text-[#ccc]">Voting Window</h3>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setIsEditingVotingWindow(true)}>
+              Edit Window
+            </Button>
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-[#666]">Start</p>
+              <p className="text-[#ccc]">{formatDateTime(combineDateAndTime(votingWindow.startDate, votingWindow.startTime))}</p>
+            </div>
+            <div>
+              <p className="text-[#666]">End</p>
+              <p className="text-[#ccc]">{formatDateTime(combineDateAndTime(votingWindow.endDate, votingWindow.endTime))}</p>
+            </div>
+            <div>
+              <p className="text-[#666]">Message</p>
+              <p className="text-[#ccc]">{votingWindow.message}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-[#333] bg-[#111]">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b-[#333]">
+                <TableHead className="w-[100px] text-white">Image</TableHead>
+                <TableHead className="text-white">Character Name</TableHead>
+                <TableHead className="text-white">Categories</TableHead>
+                <TableHead className="text-white">Submitter</TableHead>
+                <TableHead className="text-white">Created</TableHead>
+                <TableHead className="text-white">Votes</TableHead>
+                <TableHead className="text-right text-white">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center text-[#666]">
+                    <Loader2 className="h-6 w-6 animate-spin inline-block" /> Loading costumes...
+                  </TableCell>
+                </TableRow>
+              ) : costumes.length > 0 ? (
+                costumes.map((costume) => {
+                  const createdAtDate = costume.createdAt;
+                  const formattedDate = createdAtDate && isValid(createdAtDate) ? format(createdAtDate, "PPpp") : "N/A";
+                  const isResetting = isProcessing === `reset_${costume.id}`;
+                  const isDeleting = isProcessing === `delete_${costume.id}`;
+                  const isEditingCat = isProcessing === `edit_cat_${costume.id}`;
+                  const currentProcessing = isResetting || isDeleting || isEditingCat;
+
+                  return (
+                    <TableRow key={costume.id} className="border-b-[#333]">
+                      <TableCell>
+                        {costume.photoUrl ? (
+                          <img src={costume.photoUrl} alt={costume.characterName} className="h-10 w-10 object-cover rounded-sm" />
+                        ) : (
+                          <div className="h-10 w-10 bg-[#222] rounded-sm flex items-center justify-center text-[#666] text-xs">No Img</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium text-[#ccc]">{costume.characterName}</TableCell>
+                      <TableCell className="text-[#ccc]">{(costume.categories || []).map((tag) => getCategoryName(tag)).join(", ") || <span className="text-xs text-[#666]">None</span>}</TableCell>
+                      <TableCell className="text-[#ccc]">{costume.submitterName}</TableCell>
+                      <TableCell className="text-[#ccc]">{formattedDate}</TableCell>
+                      <TableCell className="text-[#ccc]">
+                        {costume.categories && costume.categories.length > 0 ? (
+                          Object.entries(costume.votes || {})
+                            .filter(([tag]) => costume.categories!.includes(tag))
+                            .map(([tag, count]) => (
+                              <div key={tag} className="text-xs">
+                                {getCategoryName(tag)}: {count}
+                              </div>
+                            ))
+                        ) : (
+                          <span className="text-xs text-[#666]">N/A</span>
+                        )}
+                        {costume.categories && costume.categories.length > 0 && Object.keys(costume.votes || {}).length === 0 && <span className="text-xs text-[#666]">No votes yet</span>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={currentProcessing}>
+                              {currentProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleOpenEditCategoriesDialog(costume)} disabled={isEditingCat}>
+                              {isEditingCat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />} Edit Categories
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleResetVotes(costume)} disabled={isResetting}>
+                              {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />} Reset Votes
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openDeleteDialog(costume)} disabled={isDeleting} className="text-red-600">
+                              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Delete Costume
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center text-[#666]">
+                    No costumes found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure?</DialogTitle>
+              <DialogDescription>This action cannot be undone. This will permanently delete the costume "{costumeToDelete?.characterName}" and all associated votes.</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isProcessing === `delete_${costumeToDelete?.id}`}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={isProcessing === `delete_${costumeToDelete?.id}`}>
+                {isProcessing === `delete_${costumeToDelete?.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={editCategoriesDialogOpen} onOpenChange={setEditCategoriesDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Categories for "{costumeToEditCategories?.characterName}"</DialogTitle>
+              <DialogDescription>Select the categories this costume should belong to.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Label>Available Categories</Label>
+              <div className="grid gap-2 max-h-60 overflow-y-auto pr-2">
+                {categories.map((category) => (
+                  <div key={category.id} className="flex items-center space-x-3">
+                    <Checkbox
+                      id={`edit-cat-${category.id}`}
+                      checked={editedCategories.includes(category.tag)}
+                      onCheckedChange={() => handleCategoryToggle(category.tag)}
+                      disabled={isProcessing === `edit_cat_${costumeToEditCategories?.id}`}
+                    />
+                    <Label htmlFor={`edit-cat-${category.id}`} className="font-normal flex flex-col">
+                      <span className="font-medium">{category.name}</span>
+                      <span className="text-xs text-muted-foreground">({category.tag})</span>
+                    </Label>
+                  </div>
+                ))}
+                {categories.length === 0 && <p className="text-sm text-muted-foreground text-center">No categories defined yet.</p>}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">Selected: {editedCategories.length}</p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditCategoriesDialogOpen(false)} disabled={isProcessing === `edit_cat_${costumeToEditCategories?.id}`}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEditedCategories} disabled={isProcessing === `edit_cat_${costumeToEditCategories?.id}` || editedCategories.length === 0}>
+                {isProcessing === `edit_cat_${costumeToEditCategories?.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Save Categories
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditingVotingWindow} onOpenChange={setIsEditingVotingWindow}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Voting Window</DialogTitle>
+              <DialogDescription>Configure when voting is allowed and the message shown when voting is closed.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>Start Date and Time</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Input
+                      type="date"
+                      value={votingWindow.startDate}
+                      onChange={(e) => {
+                        setVotingWindow((prev) => ({
+                          ...prev,
+                          startDate: e.target.value,
+                        }));
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="time"
+                      value={votingWindow.startTime}
+                      onChange={(e) => {
+                        setVotingWindow((prev) => ({
+                          ...prev,
+                          startTime: e.target.value,
+                        }));
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>End Date and Time</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Input
+                      type="date"
+                      value={votingWindow.endDate}
+                      onChange={(e) => {
+                        setVotingWindow((prev) => ({
+                          ...prev,
+                          endDate: e.target.value,
+                        }));
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="time"
+                      value={votingWindow.endTime}
+                      onChange={(e) => {
+                        setVotingWindow((prev) => ({
+                          ...prev,
+                          endTime: e.target.value,
+                        }));
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="message">Message (use {"{time}"} for the start time)</Label>
+                <Input id="message" value={votingWindow.message} onChange={(e) => setVotingWindow((prev) => ({ ...prev, message: e.target.value }))} placeholder="Voting will open at {time}" />
+              </div>
+              <div className="rounded-md bg-secondary p-4">
+                <p className="text-sm font-medium mb-2">Summary</p>
+                <p className="text-sm text-muted-foreground">
+                  Voting will be open from {format(combineDateAndTime(votingWindow.startDate, votingWindow.startTime), "MMMM d, yyyy 'at' h:mm a")} until{" "}
+                  {format(combineDateAndTime(votingWindow.endDate, votingWindow.endTime), "h:mm a")}
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditingVotingWindow(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveVotingWindow}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Are you sure?</DialogTitle>
-            <DialogDescription>This action cannot be undone. This will permanently delete the costume "{costumeToDelete?.characterName}" and all associated votes.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isProcessing === `delete_${costumeToDelete?.id}`}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isProcessing === `delete_${costumeToDelete?.id}`}>
-              {isProcessing === `delete_${costumeToDelete?.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editCategoriesDialogOpen} onOpenChange={setEditCategoriesDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Categories for "{costumeToEditCategories?.characterName}"</DialogTitle>
-            <DialogDescription>Select the categories this costume should belong to.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <Label>Available Categories</Label>
-            <div className="grid gap-2 max-h-60 overflow-y-auto pr-2">
-              {categories.map((category) => (
-                <div key={category.id} className="flex items-center space-x-3">
-                  <Checkbox
-                    id={`edit-cat-${category.id}`}
-                    checked={editedCategories.includes(category.tag)}
-                    onCheckedChange={() => handleCategoryToggle(category.tag)}
-                    disabled={isProcessing === `edit_cat_${costumeToEditCategories?.id}`}
-                  />
-                  <Label htmlFor={`edit-cat-${category.id}`} className="font-normal flex flex-col">
-                    <span className="font-medium">{category.name}</span>
-                    <span className="text-xs text-muted-foreground">({category.tag})</span>
-                  </Label>
-                </div>
-              ))}
-              {categories.length === 0 && <p className="text-sm text-muted-foreground text-center">No categories defined yet.</p>}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">Selected: {editedCategories.length}</p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditCategoriesDialogOpen(false)} disabled={isProcessing === `edit_cat_${costumeToEditCategories?.id}`}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEditedCategories} disabled={isProcessing === `edit_cat_${costumeToEditCategories?.id}` || editedCategories.length === 0}>
-              {isProcessing === `edit_cat_${costumeToEditCategories?.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save Categories
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditingVotingWindow} onOpenChange={setIsEditingVotingWindow}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Voting Window</DialogTitle>
-            <DialogDescription>Configure when voting is allowed and the message shown when voting is closed.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Start Date and Time</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Input
-                    type="date"
-                    value={votingWindow.startDate}
-                    onChange={(e) => {
-                      setVotingWindow((prev) => ({
-                        ...prev,
-                        startDate: e.target.value,
-                      }));
-                    }}
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <Input
-                    type="time"
-                    value={votingWindow.startTime}
-                    onChange={(e) => {
-                      setVotingWindow((prev) => ({
-                        ...prev,
-                        startTime: e.target.value,
-                      }));
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>End Date and Time</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Input
-                    type="date"
-                    value={votingWindow.endDate}
-                    onChange={(e) => {
-                      setVotingWindow((prev) => ({
-                        ...prev,
-                        endDate: e.target.value,
-                      }));
-                    }}
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <Input
-                    type="time"
-                    value={votingWindow.endTime}
-                    onChange={(e) => {
-                      setVotingWindow((prev) => ({
-                        ...prev,
-                        endTime: e.target.value,
-                      }));
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="message">Message (use {"{time}"} for the start time)</Label>
-              <Input id="message" value={votingWindow.message} onChange={(e) => setVotingWindow((prev) => ({ ...prev, message: e.target.value }))} placeholder="Voting will open at {time}" />
-            </div>
-            <div className="rounded-md bg-secondary p-4">
-              <p className="text-sm font-medium mb-2">Summary</p>
-              <p className="text-sm text-muted-foreground">
-                Voting will be open from {format(combineDateAndTime(votingWindow.startDate, votingWindow.startTime), "MMMM d, yyyy 'at' h:mm a")} until{" "}
-                {format(combineDateAndTime(votingWindow.endDate, votingWindow.endTime), "h:mm a")}
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditingVotingWindow(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveVotingWindow}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AdminLayout>
   );
 };

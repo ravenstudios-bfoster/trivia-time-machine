@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getCostumes, getUserVotes, getCostumeCategories, getVotingWindow } from "@/lib/firebase";
-import { Costume, Vote, CostumeCategory, VotingWindow } from "@/types";
+import { getCostumes, getUserVotes, getCostumeCategories, getVotingWindow, getCostumeInstructions } from "@/lib/firebase";
+import { Costume, Vote, CostumeCategory, VotingWindow, CostumeInstructions } from "@/types";
 import CostumeCard from "@/components/CostumeCard";
 import UserCostumeSubmission from "@/components/UserCostumeSubmission";
 import { Button } from "@/components/ui/button";
@@ -22,20 +22,23 @@ export default function CostumeGallery() {
   const [votingWindow, setVotingWindow] = useState<VotingWindow | null>(null);
   const [isVotingOpen, setIsVotingOpen] = useState(false);
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
+  const [instructions, setInstructions] = useState<CostumeInstructions | null>(null);
 
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [fetchedCostumes, fetchedVotes, fetchedCategories, votingWindowData] = await Promise.all([
+      const [fetchedCostumes, fetchedVotes, fetchedCategories, votingWindowData, instructionsData] = await Promise.all([
         getCostumes(),
         currentUser ? getUserVotes(currentUser.uid) : Promise.resolve([]),
         getCostumeCategories(),
         getVotingWindow(),
+        getCostumeInstructions(),
       ]);
       setCostumes(fetchedCostumes);
       setUserVotes(fetchedVotes);
       setCategories(fetchedCategories);
       setVotingWindow(votingWindowData);
+      setInstructions(instructionsData);
 
       if (votingWindowData) {
         const now = new Date();
@@ -114,6 +117,17 @@ export default function CostumeGallery() {
               </DialogContent>
             </Dialog>
           </div>
+
+          {/* Instructions Section */}
+          {instructions ? (
+            <div className="bg-secondary/10 rounded-lg px-4 py-3 mb-4">
+              <div className="text-foreground text-base">{instructions.instructions}</div>
+            </div>
+          ) : (
+            <div className="bg-secondary/10 rounded-lg px-4 py-3 mb-4">
+              <div className="text-foreground text-base">Loading instructions...</div>
+            </div>
+          )}
 
           {/* Categories Section */}
           <div className="grid gap-4 md:grid-cols-2">
