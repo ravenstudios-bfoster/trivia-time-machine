@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           id: firebaseUser.uid,
           displayName: userData.displayName || firebaseUser.displayName || "",
           email: firebaseUser.email || "",
-          role: userData.role || "participant",
+          role: userData.role || "user",
           createdAt: userData.createdAt?.toDate() || new Date(),
           lastLogin: new Date(),
           gamesParticipated: userData.gamesParticipated || 0,

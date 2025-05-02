@@ -62,10 +62,16 @@ const Users = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -191,6 +197,17 @@ const Users = () => {
     setShowDeleteDialog(true);
   };
 
+  const openCreateDialog = () => {
+    setFormData({
+      email: "",
+      password: "",
+      firstName: "",
+      lastName: "",
+      role: "user" as UserRole,
+    });
+    setShowCreateDialog(true);
+  };
+
   const content = () => {
     if (!isSuperAdmin) {
       return (
@@ -209,6 +226,9 @@ const Users = () => {
       return matchesSearch && matchesRole;
     });
 
+    const totalPages = Math.ceil(filteredUsers.length / rowsPerPage) || 1;
+    const paginatedUsers = filteredUsers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
     return (
       <>
         <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
@@ -226,7 +246,7 @@ const Users = () => {
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="super_admin">Super Admin</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="participant">Participant</SelectItem>
+                <SelectItem value="user">User</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -236,7 +256,7 @@ const Users = () => {
             <Upload className="h-4 w-4 mr-2" />
             Import Users
           </Button>
-          <Button onClick={() => setShowCreateDialog(true)}>
+          <Button onClick={openCreateDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Add New User
           </Button>
@@ -261,8 +281,8 @@ const Users = () => {
                     <Loader2 className="h-6 w-6 animate-spin inline-block" /> Loading users...
                   </TableCell>
                 </TableRow>
-              ) : filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
+              ) : paginatedUsers.length > 0 ? (
+                paginatedUsers.map((user) => (
                   <TableRow key={user.id} className="border-b-[#333]">
                     <TableCell className="font-medium text-[#ccc]">{user.email}</TableCell>
                     <TableCell className="text-[#ccc]">{user.firstName || "-"}</TableCell>
@@ -300,6 +320,21 @@ const Users = () => {
               )}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+              Next
+            </Button>
+          </div>
         </div>
 
         {/* Create User Dialog */}
@@ -345,7 +380,7 @@ const Users = () => {
                   <SelectContent>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="participant">Participant</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -399,7 +434,7 @@ const Users = () => {
                   <SelectContent>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="participant">Participant</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

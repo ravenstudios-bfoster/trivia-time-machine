@@ -156,7 +156,7 @@ export type Participant = {
 };
 
 // Admin User Types
-export type UserRole = "super_admin" | "admin" | "user" | "participant";
+export type UserRole = "super_admin" | "admin" | "user";
 
 export type AdminUser = {
   id: string;

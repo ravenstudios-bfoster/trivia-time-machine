@@ -33,7 +33,7 @@ export default function UserCostumeSubmission({ categories, onSuccess }: UserCos
           await setDoc(userRef, {
             displayName: currentUser.displayName || "",
             email: currentUser.email,
-            role: "participant",
+            role: "user",
             createdAt: serverTimestamp(),
             lastLogin: serverTimestamp(),
             gamesParticipated: 0,
@@ -83,7 +83,7 @@ export default function UserCostumeSubmission({ categories, onSuccess }: UserCos
         await setDoc(userRef, {
           displayName: currentUser.displayName || "",
           email: currentUser.email,
-          role: "participant",
+          role: "user",
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
           gamesParticipated: 0,
