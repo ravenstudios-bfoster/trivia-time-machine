@@ -20,22 +20,32 @@ import { toast } from "sonner";
 import { Save, ArrowLeft, Plus, Trash2, Image, Video, HelpCircle, Lightbulb, FileText, Settings2, Film } from "lucide-react";
 
 // Form schema
-const questionFormSchema = z.object({
-  text: z.string().min(3, "Question text must be at least 3 characters"),
-  type: z.enum(["multiple-choice", "true-false", "write-in"] as const),
-  level: z.number().min(1).max(3),
-  difficulty: z.enum(["easy", "medium", "hard"] as const),
-  topic: z.string().min(1, "Topic is required"),
-  pointValue: z.number().min(1, "Points must be at least 1").default(10),
-  timeLimit: z.number().min(5, "Time limit must be at least 5 seconds").default(30),
-  options: z.array(z.string()).optional(),
-  correctAnswer: z.union([z.number(), z.string()]).optional(),
-  hint: z.string().optional(),
-  hintPenalty: z.number().min(0, "Hint penalty must be at least 0").default(1),
-  explanation: z.string().optional(),
-  imageUrl: z.string().optional(),
-  videoUrl: z.string().optional(),
-});
+const questionFormSchema = z
+  .object({
+    text: z.string().min(3, "Question text must be at least 3 characters"),
+    type: z.enum(["multiple-choice", "true-false", "write-in"] as const),
+    level: z.number().min(1).max(3),
+    difficulty: z.enum(["easy", "medium", "hard"] as const),
+    topic: z.string().min(1, "Topic is required"),
+    pointValue: z.number().min(1, "Points must be at least 1").default(10),
+    timeLimit: z.number().min(5, "Time limit must be at least 5 seconds").default(30),
+    options: z.array(z.string()).optional(),
+    correctAnswer: z.union([z.number(), z.string()]).optional(),
+    hint: z.string().optional(),
+    hintPenalty: z.number().min(0, "Hint penalty must be at least 0").default(1),
+    explanation: z.string().optional(),
+    imageUrl: z.string().optional(),
+    videoUrl: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if ((data.type === "multiple-choice" || data.type === "true-false") && (data.correctAnswer === undefined || data.correctAnswer === null || data.correctAnswer === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "You must select a correct answer.",
+        path: ["correctAnswer"],
+      });
+    }
+  });
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
@@ -123,6 +133,13 @@ const QuestionForm = () => {
   const onSubmit = async (values: QuestionFormValues) => {
     try {
       setIsLoading(true);
+
+      // Check for correctAnswer for MC/TF
+      if ((values.type === "multiple-choice" || values.type === "true-false") && (values.correctAnswer === undefined || values.correctAnswer === null || values.correctAnswer === "")) {
+        toast.error("You must select a correct answer.");
+        setIsLoading(false);
+        return;
+      }
 
       // Prepare question data
       const questionData: Partial<Question> = {
@@ -261,7 +278,14 @@ const QuestionForm = () => {
 
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && currentStep < steps.length - 1) {
+                    e.preventDefault();
+                  }
+                }}
+              >
                 <Tabs value={steps[currentStep].id} className="space-y-6">
                   <TabsList className="grid grid-cols-4 gap-4 bg-[#333] p-1 rounded-lg">
                     {steps.map((step, index) => {
@@ -481,7 +505,7 @@ const QuestionForm = () => {
                   </TabsContent>
 
                   <TabsContent value="answers" className="space-y-6">
-                    {(questionType === "multiple-choice" || questionType === "true-false") && (
+                    {questionType === "multiple-choice" && (
                       <div className="space-y-4">
                         <div className="bg-[#222] rounded-lg border border-[#333] p-4">
                           <h3 className="text-lg font-semibold mb-4 text-white">Answer Options</h3>
@@ -493,7 +517,7 @@ const QuestionForm = () => {
                                 render={({ field }) => (
                                   <FormItem className="flex-1">
                                     <FormControl>
-                                      <Input placeholder={`Option ${index + 1}`} {...field} className="bg-[#111] border-[#333] text-white" disabled={questionType === "true-false"} />
+                                      <Input placeholder={`Option ${index + 1}`} {...field} className="bg-[#111] border-[#333] text-white" />
                                     </FormControl>
                                     <FormMessage className="text-[#FF3D00]" />
                                   </FormItem>
@@ -504,21 +528,18 @@ const QuestionForm = () => {
                                 variant="outline"
                                 size="icon"
                                 onClick={() => removeOption(index)}
-                                disabled={questionType === "true-false" || form.watch("options")?.length <= 2}
+                                disabled={form.watch("options")?.length <= 2}
                                 className="border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           ))}
-                          {questionType === "multiple-choice" && (
-                            <Button type="button" variant="outline" onClick={addOption} className="mt-2 border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]">
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Option
-                            </Button>
-                          )}
+                          <Button type="button" variant="outline" onClick={addOption} className="mt-2 border-[#333] text-[#666] hover:text-white hover:border-[#FF3D00]">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Option
+                          </Button>
                         </div>
-
                         <FormField
                           control={form.control}
                           name="correctAnswer"
@@ -546,7 +567,43 @@ const QuestionForm = () => {
                         />
                       </div>
                     )}
-
+                    {questionType === "true-false" && (
+                      <div className="space-y-4">
+                        <div className="bg-[#222] rounded-lg border border-[#333] p-4">
+                          <h3 className="text-lg font-semibold mb-4 text-white">Answer Options</h3>
+                          <div className="flex flex-col gap-2">
+                            <Input value="True" disabled className="bg-[#111] border-[#333] text-white" />
+                            <Input value="False" disabled className="bg-[#111] border-[#333] text-white" />
+                          </div>
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="correctAnswer"
+                          render={({ field }) => (
+                            <FormItem className="bg-[#222] rounded-lg border border-[#333] p-4">
+                              <FormLabel className="text-white">Correct Answer</FormLabel>
+                              <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                                <FormControl>
+                                  <SelectTrigger className="bg-[#111] border-[#333] text-white">
+                                    <SelectValue placeholder="Select correct answer" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="bg-[#222] border-[#333]">
+                                  <SelectItem value="0" className="text-white hover:bg-[#333]">
+                                    True
+                                  </SelectItem>
+                                  <SelectItem value="1" className="text-white hover:bg-[#333]">
+                                    False
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormDescription className="text-[#666]">Select whether the correct answer is True or False</FormDescription>
+                              <FormMessage className="text-[#FF3D00]" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
                     {questionType === "write-in" && (
                       <FormField
                         control={form.control}
