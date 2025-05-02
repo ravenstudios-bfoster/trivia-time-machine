@@ -9,12 +9,15 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Download, Eye, List, Grid } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/context/AuthContext";
 
 const AdminVideoGuestbook = () => {
+  const { userRole } = useAuth();
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("list"); // Default to list view
   const [messageToDelete, setMessageToDelete] = useState<VideoGuestbookMessage | null>(null);
 
+  // Always call hooks at the top
   const { data: messages = [], isLoading: isLoadingMessages } = useQuery({
     queryKey: ["admin-video-guestbook"],
     queryFn: async () => {
@@ -27,6 +30,19 @@ const AdminVideoGuestbook = () => {
       })) as VideoGuestbookMessage[];
     },
   });
+
+  if (userRole === "admin") {
+    return (
+      <AdminLayout title="Video Guestbook">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center py-24">
+            <h1 className="text-3xl font-bold mb-4">Access Denied</h1>
+            <p className="text-lg text-muted-foreground">You do not have permission to view this page.</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   const handleDelete = async () => {
     if (!messageToDelete) return;

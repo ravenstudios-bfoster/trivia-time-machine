@@ -12,8 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { MoreHorizontal, Trash2, Edit, PlusCircle, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/context/AuthContext";
 
 const AdminCostumeCategories = () => {
+  const { userRole } = useAuth();
   const [categories, setCategories] = useState<CostumeCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
@@ -153,6 +155,19 @@ const AdminCostumeCategories = () => {
       .replace(/[^a-z0-9]+/g, "_") // Replace any non-alphanumeric chars with underscore
       .replace(/^_+|_+$/g, ""); // Remove leading/trailing underscores
   };
+
+  if (userRole === "admin") {
+    return (
+      <AdminLayout title="Manage Costume Categories">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center py-24">
+            <h1 className="text-3xl font-bold mb-4">Access Denied</h1>
+            <p className="text-lg text-muted-foreground">You do not have permission to view this page.</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout title="Manage Costume Categories" subtitle="Add, edit, or remove categories for costume voting." breadcrumbs={[{ label: "Costume Categories", href: "/admin/costume-categories" }]}>

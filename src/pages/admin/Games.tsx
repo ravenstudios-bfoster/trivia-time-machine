@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Timestamp } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/AuthContext";
 
 const AdminGames = () => {
   const [games, setGames] = useState<Game[]>([]);
@@ -28,6 +29,7 @@ const AdminGames = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
+  const { userRole } = useAuth();
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -181,13 +183,14 @@ const AdminGames = () => {
               <Filter className="h-4 w-4 mr-2" />
               {showFilters ? "Hide Filters" : "Show Filters"}
             </Button>
-
-            <Link to="/admin/games/new">
-              <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Game
-              </Button>
-            </Link>
+            {userRole !== "admin" && (
+              <Link to="/admin/games/new">
+                <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Game
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -225,13 +228,11 @@ const AdminGames = () => {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-[#222] border-b border-[#333]">
-                <TableHead className="text-[#666]">Game Title</TableHead>
+                <TableHead className="text-[#666]">Title</TableHead>
                 <TableHead className="text-[#666]">Status</TableHead>
-                <TableHead className="text-[#666]">Questions</TableHead>
-                <TableHead className="text-[#666]">Levels</TableHead>
-                <TableHead className="text-[#666]">Players</TableHead>
                 <TableHead className="text-[#666]">Created</TableHead>
-                <TableHead className="text-right text-[#666]">Actions</TableHead>
+                <TableHead className="text-[#666]">Players</TableHead>
+                <TableHead className="text-[#666]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -243,52 +244,39 @@ const AdminGames = () => {
                       {game.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-white">{game.questionIds?.length || 0}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {game.allowedLevels.sort().map((level) => (
-                        <Badge key={level} variant="outline" className={`${level === "3" ? "bg-purple-500/10 text-purple-400 border-purple-500" : "bg-yellow-500/10 text-yellow-400 border-yellow-500"}`}>
-                          Level {level}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-[#666]">{game.participantCount}</TableCell>
-                  <TableCell className="text-[#666]">{format(game.createdAt.toDate(), "MMM d, yyyy")}</TableCell>
+                  <TableCell className="text-[#666]">{game.createdAt ? format(game.createdAt.toDate(), "yyyy-MM-dd HH:mm") : "-"}</TableCell>
+                  <TableCell className="text-[#666]">{game.participantCount ?? 0}</TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
-                        <DropdownMenuItem onClick={() => navigate(`/admin/games/${game.id}`)} className="text-gray-300 hover:bg-[#333] cursor-pointer">
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/admin/games/${game.id}/edit`)} className="text-gray-300 hover:bg-[#333] cursor-pointer">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Game
-                        </DropdownMenuItem>
-                        {game.status === "inactive" && (
-                          <DropdownMenuItem onClick={() => handleStartGame(game.id)} className="text-gray-300 hover:bg-[#333] cursor-pointer">
-                            <Play className="h-4 w-4 mr-2" />
-                            Start Game
+                    {userRole !== "admin" ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-[#666] hover:text-white hover:bg-[#222]">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
+                          <Link to={`/admin/games/${game.id}`}>
+                            <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </DropdownMenuItem>
+                          </Link>
+                          <Link to={`/admin/games/${game.id}/edit`}>
+                            <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          </Link>
+                          <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteGameId(game.id)}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
                           </DropdownMenuItem>
-                        )}
-                        {game.status === "active" && (
-                          <DropdownMenuItem onClick={() => setEndGameId(game.id)} className="text-gray-300 hover:bg-[#333] cursor-pointer">
-                            <StopCircle className="h-4 w-4 mr-2" />
-                            End Game
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => setDeleteGameId(game.id)} className="text-red-500 hover:bg-[#333] hover:text-red-400 cursor-pointer">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <span className="text-[#666] italic">View Only</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -299,12 +287,14 @@ const AdminGames = () => {
         <div className="text-center p-12 border rounded-md bg-[#111] border-[#333]">
           <h3 className="text-lg font-medium mb-2 text-white">No games found</h3>
           <p className="text-[#666] mb-6">{searchTerm || statusFilter !== "all" ? "Try adjusting your filters" : "Create your first game to get started"}</p>
-          <Link to="/admin/games/new">
-            <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Game
-            </Button>
-          </Link>
+          {userRole !== "admin" && (
+            <Link to="/admin/games/new">
+              <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Game
+              </Button>
+            </Link>
+          )}
         </div>
       )}
 

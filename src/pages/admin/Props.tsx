@@ -18,13 +18,16 @@ import { PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
 import { Prop } from "@/types";
 import { getProps, deleteProp } from "@/lib/firebase";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 const AdminProps = () => {
+  const { userRole } = useAuth();
   const [props, setProps] = useState<Prop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
+    if (userRole === "admin") return;
     const fetchProps = async () => {
       setIsLoading(true);
       try {
@@ -37,9 +40,21 @@ const AdminProps = () => {
         setIsLoading(false);
       }
     };
-
     fetchProps();
-  }, []);
+  }, [userRole]);
+
+  if (userRole === "admin") {
+    return (
+      <AdminLayout title="Manage Props & Memorabilia">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center py-24">
+            <h1 className="text-3xl font-bold mb-4">Access Denied</h1>
+            <p className="text-lg text-muted-foreground">You do not have permission to view this page.</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   const handleDeleteProp = async (propId: string, propTitle: string) => {
     setIsDeleting(propId);

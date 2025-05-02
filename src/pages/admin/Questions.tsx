@@ -12,8 +12,10 @@ import { getQuestions, deleteQuestion } from "@/lib/firebase";
 import { Question, QuestionType, Level } from "@/types";
 import { Plus, Search, MoreHorizontal, Edit, Trash2, Image, Video, Filter } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 const AdminQuestions = () => {
+  const { userRole } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,13 +127,14 @@ const AdminQuestions = () => {
               <Filter className="h-4 w-4 mr-2" />
               {showFilters ? "Hide Filters" : "Show Filters"}
             </Button>
-
-            <Link to="/admin/questions/new">
-              <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Question
-              </Button>
-            </Link>
+            {userRole !== "admin" && (
+              <Link to="/admin/questions/new">
+                <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Question
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -256,27 +259,30 @@ const AdminQuestions = () => {
                   </TableCell>
                   <TableCell className="text-[#666]">{question.pointValue}</TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-[#666] hover:text-white hover:bg-[#222]">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
-                        <Link to={`/admin/questions/${question.id}`}>
-                          <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit Question
+                    {userRole !== "admin" ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-[#666] hover:text-white hover:bg-[#222]">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
+                          <Link to={`/admin/questions/${question.id}`}>
+                            <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Question
+                            </DropdownMenuItem>
+                          </Link>
+                          <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteQuestionId(question.id)}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
                           </DropdownMenuItem>
-                        </Link>
-
-                        <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteQuestionId(question.id)}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <span className="text-[#666] italic">View Only</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -289,12 +295,14 @@ const AdminQuestions = () => {
           <p className="text-[#666] mb-6">
             {searchTerm || levelFilter !== "all" || typeFilter !== "all" || mediaFilter !== "all" ? "Try adjusting your filters" : "Create your first question to get started"}
           </p>
-          <Link to="/admin/questions/new">
-            <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Question
-            </Button>
-          </Link>
+          {userRole !== "admin" && (
+            <Link to="/admin/questions/new">
+              <Button className="bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white hover:opacity-90">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Question
+              </Button>
+            </Link>
+          )}
         </div>
       )}
 

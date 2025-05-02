@@ -87,7 +87,6 @@ const AdminQuestions = lazy(() => import("./pages/admin/Questions"));
 const AdminQuestion = lazy(() => import("./pages/admin/Question"));
 const AdminPlayers = lazy(() => import("./pages/admin/Players"));
 const AdminUsers = lazy(() => import("./pages/admin/Users"));
-const SeedDatabase = lazy(() => import("./pages/admin/SeedDatabase"));
 const GameForm = lazy(() => import("./pages/admin/GameForm"));
 const QuestionForm = lazy(() => import("./pages/admin/QuestionForm"));
 const AdminProps = lazy(() => import("@/pages/admin/Props"));
@@ -167,7 +166,6 @@ const App = () => (
                 <Route path="/admin/questions/:questionId/edit" element={<QuestionForm />} />
                 <Route path="/admin/games/:gameId/players" element={<AdminPlayers />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
-                <Route path="/admin/seed" element={<SeedDatabase />} />
                 <Route path="/admin/video-guestbook" element={<AdminVideoGuestbook />} />
                 <Route path="/admin/props" element={<AdminProps />} />
                 <Route path="/admin/props/new" element={<PropForm />} />

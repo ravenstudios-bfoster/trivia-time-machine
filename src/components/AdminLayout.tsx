@@ -52,21 +52,16 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
     { label: "Questions", href: "/admin/questions", icon: <HelpCircle className="h-4 w-4 mr-2" /> },
     { label: "Games", href: "/admin/games", icon: <Gamepad2 className="h-4 w-4 mr-2" /> },
     { label: "Leaderboard", href: "/admin/leaderboard", icon: <Trophy className="h-4 w-4 mr-2" /> },
-    { label: "Video Guestbook", href: "/admin/video-guestbook", icon: <MessageSquare className="h-4 w-4 mr-2" /> },
-    { label: "Props", href: "/admin/props", icon: <Film className="h-4 w-4 mr-2" /> },
+    ...(isSuperAdmin
+      ? [
+          { label: "Video Guestbook", href: "/admin/video-guestbook", icon: <MessageSquare className="h-4 w-4 mr-2" /> },
+          { label: "Props", href: "/admin/props", icon: <Film className="h-4 w-4 mr-2" /> },
+          { label: "Costume Categories", href: "/admin/costume-categories", icon: <Tags className="h-4 w-4 mr-2" /> },
+        ]
+      : []),
     { label: "Costumes", href: "/admin/costumes", icon: <Shirt className="h-4 w-4 mr-2" /> },
-    { label: "Costume Categories", href: "/admin/costume-categories", icon: <Tags className="h-4 w-4 mr-2" /> },
     { label: "Users", href: "/admin/users", icon: <ShieldAlert className="h-4 w-4 mr-2" /> },
   ];
-
-  // Add Seed Database link for super admins only
-  if (isSuperAdmin) {
-    navItems.push({
-      label: "Seed Database",
-      href: "/admin/seed",
-      icon: <Database className="h-4 w-4 mr-2" />,
-    });
-  }
 
   const renderNavItems = () => (
     <nav className="space-y-1">
