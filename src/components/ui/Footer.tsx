@@ -14,8 +14,8 @@ const Footer = () => {
           <ProtectedLink to="/props-and-memorabilia" className="text-foreground hover:text-primary transition-colors duration-200">
             Props & Memorabilia
           </ProtectedLink>
-          <ProtectedLink to="/birthday-messages" className="text-foreground hover:text-primary transition-colors duration-200">
-            Birthday Messages
+          <ProtectedLink to="/video-guestbook" className="text-foreground hover:text-primary transition-colors duration-200">
+            Video Guestbook
           </ProtectedLink>
         </nav>
         <div className="text-center mt-6 text-muted-foreground text-sm">© {new Date().getFullYear()} Tom's 50th: The Birthday Paradox</div>

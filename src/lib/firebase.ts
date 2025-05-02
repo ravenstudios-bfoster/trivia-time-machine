@@ -122,7 +122,7 @@ export const accessCodesCollection = collection(db, "accessCodes");
 export const costumesCollection = collection(db, "costumes");
 export const votesCollection = collection(db, "votes");
 export const usersCollection = collection(db, "users");
-export const birthdayMessagesCollection = collection(db, "birthday-messages");
+export const videoGuestbookCollection = collection(db, "video-guestbook");
 export const propsCollection = collection(db, "props") as CollectionReference<Omit<Prop, "id">>;
 export const configCollection = collection(db, "config");
 

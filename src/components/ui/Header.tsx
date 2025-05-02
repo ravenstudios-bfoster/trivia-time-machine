@@ -29,8 +29,8 @@ const Header = () => {
           <ProtectedLink to="/props-and-memorabilia" className="text-white hover:text-primary transition-colors text-lg">
             Props & Memorabilia
           </ProtectedLink>
-          <ProtectedLink to="/birthday-messages" className="text-white hover:text-primary transition-colors text-lg">
-            Birthday Messages
+          <ProtectedLink to="/video-guestbook" className="text-white hover:text-primary transition-colors text-lg">
+            Video Guestbook
           </ProtectedLink>
           <a href="https://give.michaeljfox.org/fundraiser/6119686" target="_blank" rel="noopener noreferrer" className="text-white hover:text-primary transition-colors text-lg">
             Team Fox
@@ -59,8 +59,8 @@ const Header = () => {
             <ProtectedLink to="/props-and-memorabilia" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Props & Memorabilia
             </ProtectedLink>
-            <ProtectedLink to="/birthday-messages" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
-              Birthday Messages
+            <ProtectedLink to="/video-guestbook" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
+              Video Guestbook
             </ProtectedLink>
             <a href="https://give.michaeljfox.org/fundraiser/6119686" target="_blank" rel="noopener noreferrer" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Team Fox

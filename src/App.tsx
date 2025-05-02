@@ -18,7 +18,6 @@ import Admin from "./pages/Admin";
 import CostumeVoting from "@/pages/CostumeVoting";
 import PropsAndMemorabilia from "@/pages/PropsAndMemorabilia";
 import PropDetail from "./pages/PropDetail";
-import BirthdayMessages from "./pages/BirthdayMessages";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -91,12 +90,15 @@ const AdminUsers = lazy(() => import("./pages/admin/Users"));
 const SeedDatabase = lazy(() => import("./pages/admin/SeedDatabase"));
 const GameForm = lazy(() => import("./pages/admin/GameForm"));
 const QuestionForm = lazy(() => import("./pages/admin/QuestionForm"));
-const AdminBirthdayMessages = lazy(() => import("./pages/admin/BirthdayMessages"));
 const AdminProps = lazy(() => import("@/pages/admin/Props"));
 const PropForm = lazy(() => import("@/pages/admin/PropForm"));
 const AdminCostumes = lazy(() => import("./pages/admin/Costumes"));
 const AdminCostumeCategories = lazy(() => import("./pages/admin/CostumeCategories"));
 const AdminLeaderboard = lazy(() => import("./pages/admin/Leaderboard"));
+const AdminVideoGuestbook = lazy(() => import("./pages/admin/VideoGuestbook"));
+
+// Lazy load feature routes
+const VideoGuestbook = lazy(() => import("./pages/VideoGuestbook"));
 
 const queryClient = new QueryClient();
 
@@ -166,7 +168,7 @@ const App = () => (
                 <Route path="/admin/games/:gameId/players" element={<AdminPlayers />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/seed" element={<SeedDatabase />} />
-                <Route path="/admin/birthday-messages" element={<AdminBirthdayMessages />} />
+                <Route path="/admin/video-guestbook" element={<AdminVideoGuestbook />} />
                 <Route path="/admin/props" element={<AdminProps />} />
                 <Route path="/admin/props/new" element={<PropForm />} />
                 <Route path="/admin/props/:propId/edit" element={<PropForm />} />
@@ -200,10 +202,10 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/birthday-messages"
+                  path="/video-guestbook"
                   element={
                     <ProtectedRoute>
-                      <BirthdayMessages />
+                      <VideoGuestbook />
                     </ProtectedRoute>
                   }
                 />

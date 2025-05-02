@@ -60,6 +60,9 @@ const Users = () => {
     role: "user" as UserRole,
   });
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -199,8 +202,35 @@ const Users = () => {
       );
     }
 
+    const filteredUsers = users.filter((user) => {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch = user.displayName.toLowerCase().includes(term) || user.email.toLowerCase().includes(term) || user.role.toLowerCase().includes(term);
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+
     return (
       <>
+        <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
+          <div className="flex-1">
+            <Label htmlFor="user-search">Search</Label>
+            <Input id="user-search" type="text" placeholder="Search by name, email, or role..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full" />
+          </div>
+          <div className="w-48">
+            <Label htmlFor="role-filter">Role</Label>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger id="role-filter" className="w-full">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="super_admin">Super Admin</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="participant">Participant</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="flex justify-end gap-2 mb-4">
           <Button onClick={() => setShowImportDialog(true)} variant="outline">
             <Upload className="h-4 w-4 mr-2" />
@@ -231,8 +261,8 @@ const Users = () => {
                     <Loader2 className="h-6 w-6 animate-spin inline-block" /> Loading users...
                   </TableCell>
                 </TableRow>
-              ) : users.length > 0 ? (
-                users.map((user) => (
+              ) : filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => (
                   <TableRow key={user.id} className="border-b-[#333]">
                     <TableCell className="font-medium text-[#ccc]">{user.email}</TableCell>
                     <TableCell className="text-[#ccc]">{user.firstName || "-"}</TableCell>
