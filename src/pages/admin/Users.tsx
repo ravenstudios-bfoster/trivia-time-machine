@@ -73,6 +73,12 @@ const Users = () => {
   const [resetPasswordValue, setResetPasswordValue] = useState("");
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
+  // Add state for bulk actions
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [showBulkResetDialog, setShowBulkResetDialog] = useState(false);
+  const [bulkResetPasswordValue, setBulkResetPasswordValue] = useState("");
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -266,6 +272,78 @@ const Users = () => {
     }
   };
 
+  // Helper: get user objects for selected IDs on current page
+  const selectedUsers = users.filter((u) => selectedUserIds.includes(u.id));
+  const allCurrentPageSelected = users.length > 0 && users.every((u) => selectedUserIds.includes(u.id));
+  const someCurrentPageSelected = users.some((u) => selectedUserIds.includes(u.id));
+
+  const handleSelectAll = () => {
+    if (allCurrentPageSelected) {
+      setSelectedUserIds(selectedUserIds.filter((id) => !users.some((u) => u.id === id)));
+    } else {
+      setSelectedUserIds([...selectedUserIds, ...users.filter((u) => !selectedUserIds.includes(u.id)).map((u) => u.id)]);
+    }
+  };
+
+  const handleSelectUser = (id: string) => {
+    setSelectedUserIds(selectedUserIds.includes(id) ? selectedUserIds.filter((uid) => uid !== id) : [...selectedUserIds, id]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUsers.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedUsers.length} users? This cannot be undone.`)) return;
+    setBulkActionLoading(true);
+    for (const user of selectedUsers) {
+      try {
+        // Delete from Auth first
+        const authResponse = await fetch(DELETE_USER_FUNCTION_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user.id }),
+        });
+        if (!authResponse.ok) {
+          const errorData = await authResponse.json().catch(() => ({}));
+          toast.error(`Failed to delete ${user.email} from Auth: ${errorData?.error || "Unknown error"}`);
+          continue;
+        }
+        // Delete from Firestore
+        await deleteDoc(doc(db, "users", user.id));
+        toast.success(`Deleted ${user.email}`);
+      } catch (err) {
+        toast.error(`Failed to delete ${user.email}`);
+      }
+    }
+    setBulkActionLoading(false);
+    setSelectedUserIds([]);
+    fetchUsers();
+  };
+
+  const handleBulkResetPassword = async () => {
+    if (selectedUsers.length === 0 || !bulkResetPasswordValue) return;
+    setBulkActionLoading(true);
+    for (const user of selectedUsers) {
+      try {
+        const response = await fetch(RESET_PASSWORD_FUNCTION_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user.id, newPassword: bulkResetPasswordValue }),
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          toast.error(`Failed to reset password for ${user.email}: ${errorData?.error || "Unknown error"}`);
+          continue;
+        }
+        toast.success(`Password reset for ${user.email}`);
+      } catch (err) {
+        toast.error(`Failed to reset password for ${user.email}`);
+      }
+    }
+    setBulkActionLoading(false);
+    setShowBulkResetDialog(false);
+    setBulkResetPasswordValue("");
+    setSelectedUserIds([]);
+  };
+
   const content = () => {
     if (!isSuperAdmin) {
       return (
@@ -320,10 +398,37 @@ const Users = () => {
           </Button>
         </div>
 
+        {selectedUserIds.length > 0 && (
+          <div className="flex gap-2 mb-2">
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkActionLoading}>
+              {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete Selected
+            </Button>
+            <Button variant="outline" onClick={() => setShowBulkResetDialog(true)} disabled={bulkActionLoading}>
+              {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Reset Passwords
+            </Button>
+            <Button variant="ghost" onClick={() => setSelectedUserIds([])} disabled={bulkActionLoading}>
+              Deselect All
+            </Button>
+          </div>
+        )}
+
         <div className="rounded-md border border-[#333] bg-[#111]">
           <Table>
             <TableHeader>
               <TableRow className="border-b-[#333]">
+                <TableHead>
+                  <input
+                    type="checkbox"
+                    checked={allCurrentPageSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allCurrentPageSelected && someCurrentPageSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    aria-label="Select all users on page"
+                  />
+                </TableHead>
                 <TableHead className="text-white">Email</TableHead>
                 <TableHead className="text-white">First Name</TableHead>
                 <TableHead className="text-white">Last Name</TableHead>
@@ -342,6 +447,9 @@ const Users = () => {
               ) : paginatedUsers.length > 0 ? (
                 paginatedUsers.map((user) => (
                   <TableRow key={user.id} className="border-b-[#333]">
+                    <TableCell>
+                      <input type="checkbox" checked={selectedUserIds.includes(user.id)} onChange={() => handleSelectUser(user.id)} aria-label={`Select user ${user.email}`} />
+                    </TableCell>
                     <TableCell className="font-medium text-[#ccc]">{user.email}</TableCell>
                     <TableCell className="text-[#ccc]">{user.firstName || "-"}</TableCell>
                     <TableCell className="text-[#ccc]">{user.lastName || "-"}</TableCell>
@@ -552,6 +660,33 @@ const Users = () => {
               <Button onClick={handleResetPassword} disabled={resetPasswordLoading}>
                 {resetPasswordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Reset Password
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Reset Password Dialog */}
+        <Dialog open={showBulkResetDialog} onOpenChange={setShowBulkResetDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset Passwords</DialogTitle>
+              <DialogDescription>Enter a new password for {selectedUsers.length} selected users.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="bulk-reset-password" className="text-right">
+                  New Password
+                </Label>
+                <Input id="bulk-reset-password" type="password" value={bulkResetPasswordValue} onChange={(e) => setBulkResetPasswordValue(e.target.value)} className="col-span-3" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBulkResetDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkResetPassword} disabled={bulkActionLoading || !bulkResetPasswordValue}>
+                {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Reset Passwords
               </Button>
             </DialogFooter>
           </DialogContent>
