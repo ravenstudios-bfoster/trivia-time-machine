@@ -36,6 +36,9 @@ interface UserFormData {
   role: UserRole;
 }
 
+const DELETE_USER_FUNCTION_URL = "https://us-central1-trivia-6b7e8.cloudfunctions.net/deleteUser"; // TODO: Replace with your actual function URL
+const RESET_PASSWORD_FUNCTION_URL = "https://us-central1-trivia-6b7e8.cloudfunctions.net/resetUserPassword"; // TODO: Replace with your actual function URL
+
 const Users = () => {
   const { isSuperAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -64,6 +67,11 @@ const Users = () => {
   const [roleFilter, setRoleFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
+
+  // Add state for reset password dialog
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -166,7 +174,22 @@ const Users = () => {
 
     setIsProcessing("delete");
     try {
-      // Delete from Firestore using the user's id (which is their auth UID)
+      // 1. Delete from Firebase Auth via Cloud Function
+      const authResponse = await fetch(DELETE_USER_FUNCTION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: selectedUser.id }),
+      });
+      if (!authResponse.ok) {
+        const errorData = await authResponse.json().catch(() => ({}));
+        const errorMsg = errorData?.error || "Failed to delete user from Auth.";
+        toast.error(errorMsg);
+        setIsProcessing(null);
+        setSelectedUser(null);
+        return;
+      }
+
+      // 2. Delete from Firestore using the user's id (which is their auth UID)
       await deleteDoc(doc(db, "users", selectedUser.id));
 
       toast.success("User deleted successfully");
@@ -206,6 +229,41 @@ const Users = () => {
       role: "user" as UserRole,
     });
     setShowCreateDialog(true);
+  };
+
+  const openResetPasswordDialog = (user: User) => {
+    setSelectedUser(user);
+    setResetPasswordValue("");
+    setShowResetPasswordDialog(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser || !resetPasswordValue) {
+      toast.error("Please enter a new password.");
+      return;
+    }
+    setResetPasswordLoading(true);
+    try {
+      const response = await fetch(RESET_PASSWORD_FUNCTION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: selectedUser.id, newPassword: resetPasswordValue }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData?.error || "Failed to reset password.";
+        toast.error(errorMsg);
+      } else {
+        toast.success("Password reset successfully.");
+        setShowResetPasswordDialog(false);
+        setSelectedUser(null);
+      }
+    } catch (err) {
+      console.error("Error resetting password:", err);
+      toast.error("Failed to reset password");
+    } finally {
+      setResetPasswordLoading(false);
+    }
   };
 
   const content = () => {
@@ -302,9 +360,11 @@ const Users = () => {
                           <DropdownMenuItem onClick={() => openEditDialog(user)}>
                             <Edit className="mr-2 h-4 w-4" /> Edit User
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openDeleteDialog(user)} className="text-red-600">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openResetPasswordDialog(user)}>
+                            <Key className="mr-2 h-4 w-4" /> Reset Password
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -465,6 +525,33 @@ const Users = () => {
               <Button variant="destructive" onClick={handleDeleteUser} disabled={isProcessing === "delete"}>
                 {isProcessing === "delete" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Delete User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={showResetPasswordDialog} onOpenChange={setShowResetPasswordDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset Password</DialogTitle>
+              <DialogDescription>Enter a new password for {selectedUser?.displayName || selectedUser?.email}</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="reset-password" className="text-right">
+                  New Password
+                </Label>
+                <Input id="reset-password" type="password" value={resetPasswordValue} onChange={(e) => setResetPasswordValue(e.target.value)} className="col-span-3" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowResetPasswordDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleResetPassword} disabled={resetPasswordLoading}>
+                {resetPasswordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Reset Password
               </Button>
             </DialogFooter>
           </DialogContent>
