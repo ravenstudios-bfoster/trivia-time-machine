@@ -12,6 +12,8 @@ import { Trophy, BrainCircuit, HelpCircle, Clock, ArrowRight } from "lucide-reac
 import { formatTime } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Timestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const GamePlay = () => {
   const { state, dispatch } = useGame();
@@ -27,6 +29,8 @@ const GamePlay = () => {
   const [score, setScore] = useState(0);
   const [showHint, setShowHint] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
+  const [finalTotalScore, setFinalTotalScore] = useState<number | null>(null);
+  const [finalTotalTime, setFinalTotalTime] = useState<number | null>(null);
 
   useEffect(() => {
     console.log("GamePlay mounted, current state:", {
@@ -141,6 +145,86 @@ const GamePlay = () => {
     }
   };
 
+  // Helper to update game-results in Firestore
+  async function updateGameResult({
+    gameId,
+    participantId,
+    displayName,
+    questionId,
+    answeredCorrectly,
+    timeTaken,
+    pointValue,
+    level,
+  }: {
+    gameId: string;
+    participantId: string;
+    displayName: string;
+    questionId: string;
+    answeredCorrectly: boolean;
+    timeTaken: number;
+    pointValue: number;
+    level: number;
+  }) {
+    type QuestionResult = {
+      questionId: string;
+      answeredCorrectly: boolean;
+      timeTaken: number;
+      score: number;
+    };
+    const resultRef = doc(db, "game-results", `${gameId}_${participantId}`);
+    const resultSnap = await getDoc(resultRef);
+
+    let questions: QuestionResult[] = [];
+    let totalCorrect = 0;
+    let totalScore = 0;
+    let totalTime = 0;
+
+    if (resultSnap.exists()) {
+      const data = resultSnap.data();
+      questions = (data.questions as QuestionResult[]) || [];
+      // Remove any previous entry for this question
+      questions = questions.filter((q) => q.questionId !== questionId);
+      // Add the new/updated entry
+      questions.push({
+        questionId,
+        answeredCorrectly,
+        timeTaken,
+        score: answeredCorrectly ? pointValue : 0,
+      });
+    } else {
+      questions = [
+        {
+          questionId,
+          answeredCorrectly,
+          timeTaken,
+          score: answeredCorrectly ? pointValue : 0,
+        },
+      ];
+    }
+
+    // Recalculate totals
+    totalCorrect = questions.filter((q) => q.answeredCorrectly).length;
+    totalScore = questions.reduce((sum, q) => sum + (q.score || 0), 0);
+    totalTime = questions.reduce((sum, q) => sum + (q.timeTaken || 0), 0);
+
+    // Write back to Firestore
+    await setDoc(
+      resultRef,
+      {
+        gameId,
+        participantId,
+        displayName,
+        level,
+        questions,
+        totalCorrect,
+        totalScore,
+        totalTime,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
   const handleAnswerSubmit = async (answer: string | null) => {
     if (!game || !questions[currentQuestionIndex] || !state.player) return;
 
@@ -167,6 +251,19 @@ const GamePlay = () => {
       timeRemaining: timeLeft,
     });
 
+    // --- Update game-results in Firestore ---
+    await updateGameResult({
+      gameId: game.id,
+      participantId: state.player.id,
+      displayName: state.player.name || currentUser?.displayName || "Player",
+      questionId: currentQuestion.id,
+      answeredCorrectly: isCorrect,
+      timeTaken: (game.timeLimit || 30) - timeLeft,
+      pointValue: currentQuestion.pointValue,
+      level: parseInt(game.allowedLevels[0]),
+    });
+    // ---------------------------------------
+
     // Move to next question or end game
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
@@ -177,6 +274,22 @@ const GamePlay = () => {
       setGameState("ended");
     }
   };
+
+  // Fetch totalScore and totalTime from game-results at game end
+  useEffect(() => {
+    const fetchGameResults = async () => {
+      if (gameState === "ended" && game && currentUser) {
+        const resultRef = doc(db, "game-results", `${game.id}_${currentUser.id}`);
+        const resultSnap = await getDoc(resultRef);
+        if (resultSnap.exists()) {
+          const data = resultSnap.data();
+          setFinalTotalScore(data.totalScore ?? null);
+          setFinalTotalTime(data.totalTime ?? null);
+        }
+      }
+    };
+    fetchGameResults();
+  }, [gameState, game, currentUser]);
 
   if (gameState === "loading") {
     return (
@@ -248,6 +361,8 @@ const GamePlay = () => {
               <div className="text-4xl font-bold text-[#FF3D00]">
                 Score: {score}/{questions.length} ({scorePercentage.toFixed(1)}%)
               </div>
+              {finalTotalScore !== null && <div className="text-2xl font-bold text-[#FFD700] mt-2">Total Points: {finalTotalScore}</div>}
+              {finalTotalTime !== null && <div className="text-md text-gray-400 mt-1">Total Time: {finalTotalTime.toFixed(1)} seconds</div>}
             </div>
 
             {!game.allowedLevels.includes("3") ? (
@@ -262,8 +377,8 @@ const GamePlay = () => {
               </div>
             )}
 
-            <Button onClick={() => navigate("/")} className="w-full bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
-              Return to Home
+            <Button onClick={() => navigate("/levels")} className="w-full bg-gradient-to-r from-[#FF3D00] to-[#FFD700] text-white hover:opacity-90">
+              Return to Levels
             </Button>
           </Card>
         </div>

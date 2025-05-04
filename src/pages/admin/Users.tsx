@@ -38,6 +38,7 @@ interface UserFormData {
 
 const DELETE_USER_FUNCTION_URL = "https://us-central1-trivia-6b7e8.cloudfunctions.net/deleteUser"; // TODO: Replace with your actual function URL
 const RESET_PASSWORD_FUNCTION_URL = "https://us-central1-trivia-6b7e8.cloudfunctions.net/resetUserPassword"; // TODO: Replace with your actual function URL
+const CREATE_USER_FUNCTION_URL = "https://us-central1-trivia-6b7e8.cloudfunctions.net/createUser"; // TODO: Replace with your actual function URL
 
 const Users = () => {
   const { isSuperAdmin } = useAuth();
@@ -68,7 +69,7 @@ const Users = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
-  // Add state for reset password dialog
+  // Add state for reset password
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [resetPasswordValue, setResetPasswordValue] = useState("");
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
@@ -113,20 +114,23 @@ const Users = () => {
 
     setIsProcessing("create");
     try {
-      // Generate a unique ID for the new user
-      const userDocRef = doc(collection(db, "users"));
-      const uid = userDocRef.id;
-
-      // Create user document in Firestore first
-      await setDoc(userDocRef, {
-        id: uid,
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        displayName: `${formData.firstName} ${formData.lastName}`,
-        role: formData.role,
-        createdAt: new Date(),
+      const response = await fetch(CREATE_USER_FUNCTION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          role: formData.role,
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData?.error || "Failed to create user");
+        return;
+      }
 
       toast.success("User created successfully");
       setShowCreateDialog(false);
@@ -257,8 +261,12 @@ const Users = () => {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData?.error || "Failed to reset password.";
-        toast.error(errorMsg);
+        console.error("Reset password error:", errorData);
+        if (errorData?.error?.includes("user record corresponding to the provided identifier") || errorData?.code === "auth/user-not-found") {
+          toast.error("User does not exist in Firebase Auth. Please remove this user from the database or re-create them in Auth.");
+        } else {
+          toast.error(errorData?.error || "Failed to reset password.");
+        }
       } else {
         toast.success("Password reset successfully.");
         setShowResetPasswordDialog(false);
@@ -330,11 +338,17 @@ const Users = () => {
         });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          toast.error(`Failed to reset password for ${user.email}: ${errorData?.error || "Unknown error"}`);
+          console.error(`Bulk reset password error for ${user.email}:`, errorData);
+          if (errorData?.error?.includes("user record corresponding to the provided identifier") || errorData?.code === "auth/user-not-found") {
+            toast.error(`User ${user.email} does not exist in Firebase Auth. Please remove this user from the database or re-create them in Auth.`);
+          } else {
+            toast.error(`Failed to reset password for ${user.email}: ${errorData?.error || "Unknown error"}`);
+          }
           continue;
         }
         toast.success(`Password reset for ${user.email}`);
       } catch (err) {
+        console.error(`Error resetting password for ${user.email}:`, err);
         toast.error(`Failed to reset password for ${user.email}`);
       }
     }

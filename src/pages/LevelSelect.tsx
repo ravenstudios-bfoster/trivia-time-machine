@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/ui/Layout";
 import GameButton from "@/components/ui/GameButton";
@@ -12,13 +12,16 @@ import { GameList } from "@/components/GameList";
 import { createGame } from "@/lib/firebase";
 import { toast } from "sonner";
 import { Timestamp } from "firebase/firestore";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 
 const LevelSelect = () => {
   const navigate = useNavigate();
   const { dispatch } = useGame();
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [leaderboards, setLeaderboards] = useState<Record<number, { displayName: string; totalScore: number }[]>>({});
+  const [loadingLeaderboards, setLoadingLeaderboards] = useState(false);
 
   const handleStartGame = async (level: Level) => {
     setIsLoading(true);
@@ -66,6 +69,24 @@ const LevelSelect = () => {
 
   const levels: Level[] = [1, 2, 3];
 
+  useEffect(() => {
+    const fetchLeaderboards = async () => {
+      setLoadingLeaderboards(true);
+      const newLeaderboards: Record<number, { displayName: string; totalScore: number }[]> = {};
+      for (const level of levels) {
+        const q = query(collection(db, "game-results"), where("level", "==", level), orderBy("totalScore", "desc"), limit(10));
+        const snapshot = await getDocs(q);
+        newLeaderboards[level] = snapshot.docs.map((doc) => ({
+          displayName: doc.data().displayName || doc.data().participantId || "Player",
+          totalScore: doc.data().totalScore || 0,
+        }));
+      }
+      setLeaderboards(newLeaderboards);
+      setLoadingLeaderboards(false);
+    };
+    fetchLeaderboards();
+  }, []);
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -94,25 +115,25 @@ const LevelSelect = () => {
                 <p className="text-muted-foreground">{getLevelDescription(level)}</p>
 
                 {/* Leaderboard Preview (for Level 1 & 2) */}
-                {level !== 3 && (
-                  <div className="w-full mt-4 p-3 bg-gray-50 rounded-lg">
-                    <h3 className="text-sm font-semibold mb-2 text-gray-900">Top Players</h3>
+                <div className="w-full mt-4 p-3 bg-gray-50 rounded-lg">
+                  <h3 className="text-sm font-semibold mb-2 text-gray-900">Top Players</h3>
+                  {loadingLeaderboards ? (
+                    <div className="text-gray-500 text-sm">Loading...</div>
+                  ) : leaderboards[level] && leaderboards[level].length > 0 ? (
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-sm text-gray-700">
-                        <span>1. Marty McFly</span>
-                        <span className="font-bold text-gray-900">850 pts</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-gray-700">
-                        <span>2. Doc Brown</span>
-                        <span className="font-bold text-gray-900">800 pts</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-gray-700">
-                        <span>3. Biff Tannen</span>
-                        <span className="font-bold text-gray-900">750 pts</span>
-                      </div>
+                      {leaderboards[level].map((player, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-sm text-gray-700">
+                          <span>
+                            {idx + 1}. {player.displayName}
+                          </span>
+                          <span className="font-bold text-gray-900">{player.totalScore} pts</span>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-gray-500 text-sm">No players yet.</div>
+                  )}
+                </div>
               </div>
             </Card>
           ))}

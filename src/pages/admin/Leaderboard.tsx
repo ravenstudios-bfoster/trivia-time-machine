@@ -3,10 +3,12 @@ import AdminLayout from "@/components/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCostumes, getCostumeCategories, getGames, getParticipants } from "@/lib/firebase";
-import { Costume, CostumeCategory, Game, Participant } from "@/types";
+import { Costume, CostumeCategory, Game, Participant, Question } from "@/types";
 import { Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { collection, getDocs, doc, getDoc, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface CostumeLeaderboardEntry {
   id: string;
@@ -20,20 +22,40 @@ interface CostumeLeaderboardEntry {
   totalVotes: number;
 }
 
-interface TriviaLeaderboardEntry {
-  id: string;
-  name: string;
+interface TriviaLeader {
+  participantId: string;
+  displayName: string;
   totalScore: number;
   gamesPlayed: number;
-  averageScore: number;
-  highestScore: number;
+  allResults: GameResult[];
+}
+
+interface PlayerDetail {
+  gameId: string;
+  questionId: string;
+  answeredCorrectly: boolean;
+  timeTaken: number;
+  score: number;
+  questionText: string;
+}
+
+interface GameResult {
+  gameId: string;
+  participantId: string;
+  displayName: string;
+  questions: PlayerDetail[];
+  totalScore: number;
+  // Add other fields as needed
 }
 
 const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState("costumes");
   const [costumeLeaders, setCostumeLeaders] = useState<CostumeLeaderboardEntry[]>([]);
-  const [triviaLeaders, setTriviaLeaders] = useState<TriviaLeaderboardEntry[]>([]);
+  const [triviaLeaders, setTriviaLeaders] = useState<TriviaLeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedPlayer, setSelectedPlayer] = useState<TriviaLeader | null>(null);
+  const [playerDetails, setPlayerDetails] = useState<PlayerDetail[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,49 +84,6 @@ const Leaderboard = () => {
         // Sort by total votes
         costumeEntries.sort((a, b) => b.totalVotes - a.totalVotes);
         setCostumeLeaders(costumeEntries);
-
-        // Fetch trivia data
-        const games = await getGames();
-        const activeGames = games.filter((game) => game.status === "ended");
-
-        // Get participants from all ended games
-        const participantPromises = activeGames.map((game) => getParticipants(game.id));
-        const allParticipants = await Promise.all(participantPromises);
-
-        // Process trivia data
-        const playerScores = new Map<
-          string,
-          {
-            name: string;
-            scores: number[];
-            gamesPlayed: number;
-          }
-        >();
-
-        allParticipants.flat().forEach((participant) => {
-          const existing = playerScores.get(participant.id) || {
-            name: participant.name,
-            scores: [],
-            gamesPlayed: 0,
-          };
-
-          existing.scores.push(participant.score);
-          existing.gamesPlayed++;
-          playerScores.set(participant.id, existing);
-        });
-
-        const triviaEntries: TriviaLeaderboardEntry[] = Array.from(playerScores.entries()).map(([id, data]) => ({
-          id,
-          name: data.name,
-          totalScore: data.scores.reduce((sum, score) => sum + score, 0),
-          gamesPlayed: data.gamesPlayed,
-          averageScore: data.scores.reduce((sum, score) => sum + score, 0) / data.gamesPlayed,
-          highestScore: Math.max(...data.scores),
-        }));
-
-        // Sort by average score
-        triviaEntries.sort((a, b) => b.averageScore - a.averageScore);
-        setTriviaLeaders(triviaEntries);
       } catch (error) {
         console.error("Error fetching leaderboard data:", error);
       } finally {
@@ -114,6 +93,64 @@ const Leaderboard = () => {
 
     fetchData();
   }, []);
+
+  // Fetch and aggregate game-results for trivia leaderboard
+  useEffect(() => {
+    const fetchTriviaLeaders = async () => {
+      setIsLoading(true);
+      const snapshot = await getDocs(collection(db, "game-results"));
+      const results: GameResult[] = snapshot.docs.map((doc) => doc.data() as GameResult);
+      // Aggregate by participantId
+      const playerMap: Record<string, TriviaLeader> = {};
+      for (const result of results) {
+        if (!playerMap[result.participantId]) {
+          playerMap[result.participantId] = {
+            participantId: result.participantId,
+            displayName: result.displayName || result.participantId,
+            totalScore: 0,
+            gamesPlayed: 0,
+            allResults: [],
+          };
+        }
+        playerMap[result.participantId].totalScore += result.totalScore || 0;
+        playerMap[result.participantId].gamesPlayed += 1;
+        playerMap[result.participantId].allResults.push(result);
+      }
+      const leaderboard = Object.values(playerMap).sort((a, b) => b.totalScore - a.totalScore);
+      setTriviaLeaders(leaderboard);
+      setIsLoading(false);
+    };
+    fetchTriviaLeaders();
+  }, []);
+
+  // Fetch per-question details for a player
+  const handleViewDetails = async (player: TriviaLeader) => {
+    setSelectedPlayer(player);
+    setDetailsLoading(true);
+    // Flatten all questions from all games
+    const allQuestions: PlayerDetail[] = player.allResults.flatMap((res: GameResult) => (res.questions || []).map((q: PlayerDetail) => ({ ...q, gameId: res.gameId })));
+    // Fetch question text for each unique questionId
+    const uniqueQuestionIds = Array.from(new Set(allQuestions.map((q) => q.questionId)));
+    const questionTextMap: Record<string, string> = {};
+    for (const qid of uniqueQuestionIds) {
+      if (typeof qid === "string") {
+        const qDoc = await getDoc(doc(db, "questions", qid));
+        questionTextMap[qid] = qDoc.exists() ? (qDoc.data() as Question)?.text || "" : "";
+      }
+    }
+    // Attach question text to each answer
+    const details: PlayerDetail[] = allQuestions.map((q) => ({
+      ...q,
+      questionText: questionTextMap[q.questionId] || q.questionId,
+    }));
+    setPlayerDetails(details);
+    setDetailsLoading(false);
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedPlayer(null);
+    setPlayerDetails([]);
+  };
 
   const renderCostumeLeaderboard = () => (
     <div className="grid gap-6">
@@ -195,33 +232,80 @@ const Leaderboard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
-            {triviaLeaders.slice(0, 5).map((player, index) => (
-              <div key={player.id} className="flex items-center gap-4 p-4 bg-secondary/5 rounded-lg">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
-                  <span className="text-xl font-bold">{index + 1}</span>
-                </div>
-                <div>
-                  <h3 className="font-semibold">{player.name}</h3>
-                  <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Average Score</p>
-                      <p className="font-medium">{player.averageScore.toFixed(1)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Games Played</p>
-                      <p className="font-medium">{player.gamesPlayed}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Highest Score</p>
-                      <p className="font-medium">{player.highestScore}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+            {isLoading ? (
+              <div>Loading...</div>
+            ) : triviaLeaders.length === 0 ? (
+              <div>No trivia results yet.</div>
+            ) : (
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left">#</th>
+                    <th className="text-left">Player</th>
+                    <th className="text-left">Total Points</th>
+                    <th className="text-left">Games Played</th>
+                    <th className="text-left">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {triviaLeaders.map((player, idx) => (
+                    <tr key={player.participantId} className="border-b border-gray-200">
+                      <td>{idx + 1}</td>
+                      <td>{player.displayName}</td>
+                      <td>{player.totalScore}</td>
+                      <td>{player.gamesPlayed}</td>
+                      <td>
+                        <Button size="sm" variant="outline" onClick={() => handleViewDetails(player)}>
+                          View Details
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </CardContent>
       </Card>
+      {/* Player Details Modal */}
+      {selectedPlayer && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full relative text-gray-900">
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-black" onClick={handleCloseDetails}>
+              &times;
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-gray-900">{selectedPlayer.displayName}'s Answers</h2>
+            {detailsLoading ? (
+              <div>Loading...</div>
+            ) : playerDetails.length === 0 ? (
+              <div>No answers found.</div>
+            ) : (
+              <table className="min-w-full text-xs text-gray-900">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="text-left">Game</th>
+                    <th className="text-left">Question</th>
+                    <th className="text-left">Correct?</th>
+                    <th className="text-left">Points</th>
+                    <th className="text-left">Time (s)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {playerDetails.map((q, idx) => (
+                    <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="text-gray-900">{q.gameId}</td>
+                      <td className="text-gray-900">{q.questionText}</td>
+                      <td className="text-gray-900">{q.answeredCorrectly ? "✅" : "❌"}</td>
+                      <td className="text-gray-900">{q.score}</td>
+                      <td className="text-gray-900">{q.timeTaken}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 
