@@ -155,6 +155,8 @@ const GamePlay = () => {
     timeTaken,
     pointValue,
     level,
+    scoringThreshold,
+    timeLimit,
   }: {
     gameId: string;
     participantId: string;
@@ -164,6 +166,8 @@ const GamePlay = () => {
     timeTaken: number;
     pointValue: number;
     level: number;
+    scoringThreshold: number;
+    timeLimit: number;
   }) {
     type QuestionResult = {
       questionId: string;
@@ -184,20 +188,36 @@ const GamePlay = () => {
       questions = (data.questions as QuestionResult[]) || [];
       // Remove any previous entry for this question
       questions = questions.filter((q) => q.questionId !== questionId);
-      // Add the new/updated entry
+      // Calculate score using threshold logic
+      let score = 0;
+      if (answeredCorrectly) {
+        if (timeTaken <= scoringThreshold) {
+          score = pointValue;
+        } else {
+          score = Math.max(0, Math.round(pointValue * (1 - (timeTaken - scoringThreshold) / Math.max(1, timeLimit - scoringThreshold))));
+        }
+      }
       questions.push({
         questionId,
         answeredCorrectly,
         timeTaken,
-        score: answeredCorrectly ? pointValue : 0,
+        score,
       });
     } else {
+      let score = 0;
+      if (answeredCorrectly) {
+        if (timeTaken <= scoringThreshold) {
+          score = pointValue;
+        } else {
+          score = Math.max(0, Math.round(pointValue * (1 - (timeTaken - scoringThreshold) / Math.max(1, timeLimit - scoringThreshold))));
+        }
+      }
       questions = [
         {
           questionId,
           answeredCorrectly,
           timeTaken,
-          score: answeredCorrectly ? pointValue : 0,
+          score,
         },
       ];
     }
@@ -261,6 +281,8 @@ const GamePlay = () => {
       timeTaken: (game.timeLimit || 30) - timeLeft,
       pointValue: currentQuestion.pointValue,
       level: parseInt(game.allowedLevels[0]),
+      scoringThreshold: typeof game.scoringThreshold === "number" ? game.scoringThreshold : 5,
+      timeLimit: game.timeLimit || 30,
     });
     // ---------------------------------------
 

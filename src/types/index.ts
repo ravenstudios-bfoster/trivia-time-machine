@@ -102,6 +102,7 @@ export interface Game {
   enableBonusQuestions: boolean;
   enablePostGameReview: boolean;
   allowedLevels: string[];
+  scoringThreshold: number; // Number of seconds before point deduction starts
   currentQuestionIndex: number;
   adminId: string;
   participants: Participant[];

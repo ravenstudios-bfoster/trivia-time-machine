@@ -4,7 +4,7 @@ import { useGame } from "@/context/GameContext";
 import { Game, Level } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getGames, hasUserPlayedGame } from "@/lib/firebase";
+import { getGamesForLevel, hasUserPlayedGame } from "@/lib/firebase";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -25,8 +25,7 @@ export const GameList = ({ level, onClose }: GameListProps) => {
     const loadGames = async () => {
       try {
         // Get all active games for this level
-        const allGames = await getGames();
-        const levelGames = allGames.filter((game) => game.status === "active" && game.allowedLevels.includes(level.toString()));
+        const levelGames = await getGamesForLevel(level.toString());
         setGames(levelGames);
 
         // Check which games the user has played

@@ -1109,3 +1109,10 @@ export const removeVote = async (userId: string, costumeId: string, category: st
     throw error;
   }
 };
+
+export const getGamesForLevel = async (level: string): Promise<Game[]> => {
+  const gamesRef = collection(db, "games");
+  const q = query(gamesRef, where("allowedLevels", "array-contains", level), where("status", "==", "active"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Game));
+};

@@ -268,6 +268,22 @@ const AdminGames = () => {
                               Edit
                             </DropdownMenuItem>
                           </Link>
+                          <DropdownMenuItem
+                            className="text-white hover:bg-[#333] cursor-pointer"
+                            onClick={async () => {
+                              const newStatus = game.status === "active" ? "draft" : "active";
+                              try {
+                                await updateGame(game.id, { status: newStatus });
+                                setGames(games.map((g) => (g.id === game.id ? { ...g, status: newStatus } : g)));
+                                setFilteredGames(filteredGames.map((g) => (g.id === game.id ? { ...g, status: newStatus } : g)));
+                                toast.success(`Game status set to ${newStatus}`);
+                              } catch (error) {
+                                toast.error("Failed to update game status");
+                              }
+                            }}
+                          >
+                            {game.status === "active" ? "Set Draft" : "Set Active"}
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteGameId(game.id)}>
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete

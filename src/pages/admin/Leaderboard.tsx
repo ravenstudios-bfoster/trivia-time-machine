@@ -56,6 +56,7 @@ const Leaderboard = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<TriviaLeader | null>(null);
   const [playerDetails, setPlayerDetails] = useState<PlayerDetail[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [gameTitles, setGameTitles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -138,6 +139,16 @@ const Leaderboard = () => {
         questionTextMap[qid] = qDoc.exists() ? (qDoc.data() as Question)?.text || "" : "";
       }
     }
+    // Fetch game titles for each unique gameId
+    const uniqueGameIds = Array.from(new Set(allQuestions.map((q) => q.gameId)));
+    const gameTitleMap: Record<string, string> = {};
+    for (const gid of uniqueGameIds) {
+      if (typeof gid === "string") {
+        const gDoc = await getDoc(doc(db, "games", gid));
+        gameTitleMap[gid] = gDoc.exists() ? (gDoc.data() as Game)?.title || gid : gid;
+      }
+    }
+    setGameTitles(gameTitleMap);
     // Attach question text to each answer
     const details: PlayerDetail[] = allQuestions.map((q) => ({
       ...q,
@@ -280,24 +291,24 @@ const Leaderboard = () => {
             ) : playerDetails.length === 0 ? (
               <div>No answers found.</div>
             ) : (
-              <table className="min-w-full text-xs text-gray-900">
+              <table className="min-w-full text-sm text-gray-900">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="text-left">Game</th>
-                    <th className="text-left">Question</th>
-                    <th className="text-left">Correct?</th>
-                    <th className="text-left">Points</th>
-                    <th className="text-left">Time (s)</th>
+                    <th className="text-left px-3 py-2">Game</th>
+                    <th className="text-left px-3 py-2">Question</th>
+                    <th className="text-center px-3 py-2">Correct?</th>
+                    <th className="text-right px-3 py-2">Points</th>
+                    <th className="text-right px-3 py-2">Time (s)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {playerDetails.map((q, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                      <td className="text-gray-900">{q.gameId}</td>
-                      <td className="text-gray-900">{q.questionText}</td>
-                      <td className="text-gray-900">{q.answeredCorrectly ? "✅" : "❌"}</td>
-                      <td className="text-gray-900">{q.score}</td>
-                      <td className="text-gray-900">{q.timeTaken}</td>
+                      <td className="text-gray-900 px-3 py-2">{gameTitles[q.gameId] || q.gameId}</td>
+                      <td className="text-gray-900 px-3 py-2">{q.questionText}</td>
+                      <td className="text-gray-900 text-center px-3 py-2">{q.answeredCorrectly ? "✅" : "❌"}</td>
+                      <td className="text-gray-900 text-right px-3 py-2">{q.score}</td>
+                      <td className="text-gray-900 text-right px-3 py-2">{q.timeTaken}</td>
                     </tr>
                   ))}
                 </tbody>

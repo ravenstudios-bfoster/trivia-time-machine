@@ -33,6 +33,7 @@ const formSchema = z.object({
   description: z.string().optional(),
   status: z.enum(["active", "inactive", "draft", "scheduled", "completed", "ended"]).default("draft"),
   timeLimit: z.number().min(5, "Minimum 5 seconds per question").max(120, "Maximum 120 seconds per question").default(30),
+  scoringThreshold: z.number().min(0, "Threshold must be at least 0 seconds").max(120, "Threshold must be less than or equal to the time limit").default(5),
   enableHints: z.boolean().default(false),
   enableBonusQuestions: z.boolean().default(false),
   enablePostGameReview: z.boolean().default(false),
@@ -63,6 +64,7 @@ const GameForm = () => {
       description: "",
       status: "draft",
       timeLimit: 30,
+      scoringThreshold: 5,
       enableHints: false,
       enableBonusQuestions: false,
       enablePostGameReview: false,
@@ -70,24 +72,6 @@ const GameForm = () => {
     },
     mode: "onChange",
   });
-
-  // Add validation debugging
-  useEffect(() => {
-    const subscription = form.watch(async (data) => {
-      try {
-        // Parse the current form data through the schema
-        const result = await formSchema.safeParseAsync(data);
-        console.log("Zod validation result:", result);
-
-        if (!result.success) {
-          console.log("Validation errors:", result.error.errors);
-        }
-      } catch (error) {
-        console.error("Validation error:", error);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
 
   // Load game data if editing
   useEffect(() => {
@@ -109,6 +93,7 @@ const GameForm = () => {
           description: game.description || "",
           status: game.status,
           timeLimit: game.timeLimit,
+          scoringThreshold: typeof game.scoringThreshold === "number" ? game.scoringThreshold : 5,
           enableHints: game.enableHints,
           enableBonusQuestions: game.enableBonusQuestions,
           enablePostGameReview: game.enablePostGameReview,
@@ -160,6 +145,7 @@ const GameForm = () => {
         description: values.description || "",
         status: values.status,
         timeLimit: values.timeLimit,
+        scoringThreshold: values.scoringThreshold,
         enableHints: values.enableHints,
         enableBonusQuestions: values.enableBonusQuestions,
         enablePostGameReview: values.enablePostGameReview,
@@ -321,19 +307,22 @@ const GameForm = () => {
 
           <CardContent>
             <Form {...form}>
-              <form
-                onSubmit={(e) => {
-                  console.log("Form submit event triggered");
-                  console.log("Form is valid:", form.formState.isValid);
-                  console.log("Form errors:", form.formState.errors);
-                  console.log("Current values:", form.getValues());
-                  // Validate the form data explicitly
-                  const formData = form.getValues();
-                  formSchema.parse(formData);
-                  form.handleSubmit(onSubmit)(e);
-                }}
-                className="space-y-6"
-              >
+              {/* Debug log for form state and values */}
+              {process.env.NODE_ENV === "development" && (
+                <pre className="text-xs text-gray-400 bg-gray-900 p-2 rounded mb-2">
+                  {JSON.stringify(
+                    {
+                      isDirty: form.formState.isDirty,
+                      isValid: form.formState.isValid,
+                      errors: form.formState.errors,
+                      values: form.getValues(),
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
+              )}
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Tabs value={steps[currentStep].id} className="space-y-6">
                   <TabsList className="grid grid-cols-2 gap-4 bg-[#333] p-1 rounded-lg">
                     {steps.map((step, index) => {
@@ -411,6 +400,31 @@ const GameForm = () => {
 
                     <FormField
                       control={form.control}
+                      name="scoringThreshold"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-300">Scoring Threshold (seconds)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={form.watch("timeLimit")}
+                              placeholder="Enter threshold in seconds"
+                              className="bg-[#222] border-[#444] text-white placeholder:text-gray-500"
+                              {...field}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormDescription className="text-gray-500">
+                            Users have this many seconds to answer for full points. After this, points start to decrease until the time limit is reached.
+                          </FormDescription>
+                          <FormMessage className="text-[#FF3D00]" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="allowedLevels"
                       render={({ field }) => (
                         <FormItem>
@@ -420,9 +434,10 @@ const GameForm = () => {
                               <div className="flex items-center space-x-2">
                                 <Checkbox
                                   id="level1"
-                                  checked={field.value.includes("1")}
+                                  checked={Array.isArray(field.value) ? field.value.includes("1") : false}
                                   onCheckedChange={(checked) => {
-                                    const newValue = checked ? [...field.value, "1"] : field.value.filter((v) => v !== "1");
+                                    const valueArr = Array.isArray(field.value) ? field.value : [];
+                                    const newValue = checked ? [...valueArr, "1"] : valueArr.filter((v) => v !== "1");
                                     field.onChange(newValue);
                                   }}
                                   className="bg-[#222] border-[#444] data-[state=checked]:bg-yellow-500"
@@ -434,9 +449,10 @@ const GameForm = () => {
                               <div className="flex items-center space-x-2">
                                 <Checkbox
                                   id="level2"
-                                  checked={field.value.includes("2")}
+                                  checked={Array.isArray(field.value) ? field.value.includes("2") : false}
                                   onCheckedChange={(checked) => {
-                                    const newValue = checked ? [...field.value, "2"] : field.value.filter((v) => v !== "2");
+                                    const valueArr = Array.isArray(field.value) ? field.value : [];
+                                    const newValue = checked ? [...valueArr, "2"] : valueArr.filter((v) => v !== "2");
                                     field.onChange(newValue);
                                   }}
                                   className="bg-[#222] border-[#444] data-[state=checked]:bg-yellow-500"
@@ -448,9 +464,10 @@ const GameForm = () => {
                               <div className="flex items-center space-x-2">
                                 <Checkbox
                                   id="level3"
-                                  checked={field.value.includes("3")}
+                                  checked={Array.isArray(field.value) ? field.value.includes("3") : false}
                                   onCheckedChange={(checked) => {
-                                    const newValue = checked ? [...field.value, "3"] : field.value.filter((v) => v !== "3");
+                                    const valueArr = Array.isArray(field.value) ? field.value : [];
+                                    const newValue = checked ? [...valueArr, "3"] : valueArr.filter((v) => v !== "3");
                                     field.onChange(newValue);
                                   }}
                                   className="bg-[#222] border-[#444] data-[state=checked]:bg-purple-500"
