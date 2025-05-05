@@ -13,7 +13,8 @@ import { createGame } from "@/lib/firebase";
 import { toast } from "sonner";
 import { Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from "firebase/firestore";
+import { format } from "date-fns";
 
 const LevelSelect = () => {
   const navigate = useNavigate();
@@ -22,6 +23,8 @@ const LevelSelect = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [leaderboards, setLeaderboards] = useState<Record<number, { displayName: string; totalScore: number }[]>>({});
   const [loadingLeaderboards, setLoadingLeaderboards] = useState(false);
+  const [windowLoading, setWindowLoading] = useState(true);
+  const [windowMessage, setWindowMessage] = useState<string | null>(null);
 
   const handleStartGame = async (level: Level) => {
     setIsLoading(true);
@@ -32,6 +35,7 @@ const LevelSelect = () => {
         description: getLevelDescription(level),
         status: "active",
         timeLimit: 30, // 30 seconds per question
+        scoringThreshold: 5,
         enableHints: true,
         enableBonusQuestions: true,
         enablePostGameReview: true,
@@ -86,6 +90,56 @@ const LevelSelect = () => {
     };
     fetchLeaderboards();
   }, []);
+
+  useEffect(() => {
+    // Fetch trivia play window config
+    const fetchWindow = async () => {
+      setWindowLoading(true);
+      const docRef = doc(db, "config", "triviaWindow");
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        const now = new Date();
+        const start = data.startDateTime?.toDate();
+        const end = data.endDateTime?.toDate();
+        let msg = data.message || "Trivia will open at {time}";
+        if (start && msg.includes("{time}")) {
+          msg = msg.replace("{time}", format(start, "PPPp"));
+        }
+        if (!start || !end || now < start || now > end) {
+          setWindowMessage(msg);
+        } else {
+          setWindowMessage(null);
+        }
+      } else {
+        setWindowMessage(null);
+      }
+      setWindowLoading(false);
+    };
+    fetchWindow();
+  }, []);
+
+  if (windowLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin h-8 w-8 border-4 border-[#FF3D00] border-t-transparent rounded-full" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (windowMessage) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-xl text-gray-200 font-semibold">{windowMessage}</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

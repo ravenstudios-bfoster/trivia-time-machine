@@ -19,6 +19,7 @@ import { Prop } from "@/types";
 import { getProps, deleteProp } from "@/lib/firebase";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { WindowConfigCard } from "@/components/WindowConfigCard";
 
 const AdminProps = () => {
   const { userRole } = useAuth();
@@ -71,7 +72,8 @@ const AdminProps = () => {
   };
 
   return (
-    <AdminLayout title="Manage Props & Memorabilia" subtitle="Add, edit, or remove props displayed in the app." breadcrumbs={[{ label: "Props", href: "/admin/props" }]}>
+    <AdminLayout title="Props Management" subtitle="Manage props and memorabilia" breadcrumbs={[{ label: "Props", href: "/admin/props" }]}>
+      <WindowConfigCard type="props" title="Props Window" defaultMessage="Props will open at {time}" />
       <div className="flex justify-end mb-4">
         <Link to="/admin/props/new">
           <Button>

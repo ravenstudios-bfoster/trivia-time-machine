@@ -6,11 +6,44 @@ import { getProps } from "@/lib/firebase";
 import { toast } from "sonner";
 import { Loader2, Grid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { doc, getDoc } from "firebase/firestore";
+import { format } from "date-fns";
+import { db } from "@/lib/firebase";
 
 const PropsAndMemorabilia = () => {
   const [props, setProps] = useState<Prop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [windowLoading, setWindowLoading] = useState(true);
+  const [windowMessage, setWindowMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch props play window config
+    const fetchWindow = async () => {
+      setWindowLoading(true);
+      const docRef = doc(db, "config", "propsWindow");
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        const now = new Date();
+        const start = data.startDateTime?.toDate();
+        const end = data.endDateTime?.toDate();
+        let msg = data.message || "Props will open at {time}";
+        if (start && msg.includes("{time}")) {
+          msg = msg.replace("{time}", format(start, "PPPp"));
+        }
+        if (!start || !end || now < start || now > end) {
+          setWindowMessage(msg);
+        } else {
+          setWindowMessage(null);
+        }
+      } else {
+        setWindowMessage(null);
+      }
+      setWindowLoading(false);
+    };
+    fetchWindow();
+  }, []);
 
   useEffect(() => {
     const fetchProps = async () => {
@@ -28,6 +61,28 @@ const PropsAndMemorabilia = () => {
 
     fetchProps();
   }, []);
+
+  if (windowLoading) {
+    return (
+      <Layout className="min-h-screen bg-background bttf-grid">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin h-8 w-8 border-4 border-[#FF3D00] border-t-transparent rounded-full" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (windowMessage) {
+    return (
+      <Layout className="min-h-screen bg-background bttf-grid">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-xl text-gray-200 font-semibold">{windowMessage}</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout className="min-h-screen bg-background bttf-grid">

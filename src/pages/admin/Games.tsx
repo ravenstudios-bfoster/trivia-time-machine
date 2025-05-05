@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Timestamp } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
+import { WindowConfigCard } from "@/components/WindowConfigCard";
 
 const AdminGames = () => {
   const [games, setGames] = useState<Game[]>([]);
@@ -171,6 +172,7 @@ const AdminGames = () => {
 
   return (
     <AdminLayout title="Games Management" subtitle="Create and manage your trivia games" breadcrumbs={[{ label: "Games", href: "/admin/games" }]}>
+      <WindowConfigCard type="trivia" title="Trivia Play Window" defaultMessage="Trivia will open at {time}" />
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="relative w-full md:w-64">
