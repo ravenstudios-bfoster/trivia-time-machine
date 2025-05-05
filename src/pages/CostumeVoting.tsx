@@ -51,6 +51,7 @@ export default function CostumeVoting() {
   const [isVotingOpen, setIsVotingOpen] = useState(false);
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [instructions, setInstructions] = useState<CostumeInstructions | null>(null);
+  const [showSubmitButton, setShowSubmitButton] = useState(false);
 
   // Add state for change vote dialog
   const [changeVoteDialog, setChangeVoteDialog] = useState<{
@@ -104,6 +105,18 @@ export default function CostumeVoting() {
       fetchData();
     }
   }, [currentUser, isAuthLoading]);
+
+  // Determine if the submit button should be shown
+  useEffect(() => {
+    if (!votingWindow?.startDateTime) {
+      setShowSubmitButton(false);
+      return;
+    }
+    const now = new Date();
+    const startTime = new Date(votingWindow.startDateTime);
+    const oneHourBefore = new Date(startTime.getTime() - 60 * 60 * 1000);
+    setShowSubmitButton(now >= oneHourBefore && now < startTime);
+  }, [votingWindow]);
 
   const handleVote = async (costumeId: string, category: string) => {
     console.log("Vote attempt:", {
@@ -253,15 +266,17 @@ export default function CostumeVoting() {
                 </Badge>
               )}
             </div>
-            <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>Submit Your Costume</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogTitle>Submit Your Costume</DialogTitle>
-                <UserCostumeSubmission categories={categories} onSuccess={handleSubmitSuccess} />
-              </DialogContent>
-            </Dialog>
+            {showSubmitButton && (
+              <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>Submit Your Costume</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogTitle>Submit Your Costume</DialogTitle>
+                  <UserCostumeSubmission categories={categories} onSuccess={handleSubmitSuccess} />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
           {/* Instructions Section */}
