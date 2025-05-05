@@ -7,7 +7,7 @@ import { Costume, CostumeCategory, Game, Participant, Question } from "@/types";
 import { Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { collection, getDocs, doc, getDoc, query } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface CostumeLeaderboardEntry {
@@ -52,6 +52,7 @@ const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState("costumes");
   const [costumeLeaders, setCostumeLeaders] = useState<CostumeLeaderboardEntry[]>([]);
   const [triviaLeaders, setTriviaLeaders] = useState<TriviaLeader[]>([]);
+  const [triviaLeadersByLevel, setTriviaLeadersByLevel] = useState<Record<string, TriviaLeader[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<TriviaLeader | null>(null);
   const [playerDetails, setPlayerDetails] = useState<PlayerDetail[]>([]);
@@ -95,33 +96,38 @@ const Leaderboard = () => {
     fetchData();
   }, []);
 
-  // Fetch and aggregate game-results for trivia leaderboard
+  // Fetch and aggregate game-results for trivia leaderboard by level
   useEffect(() => {
-    const fetchTriviaLeaders = async () => {
+    const fetchTriviaLeadersByLevel = async () => {
       setIsLoading(true);
-      const snapshot = await getDocs(collection(db, "game-results"));
-      const results: GameResult[] = snapshot.docs.map((doc) => doc.data() as GameResult);
-      // Aggregate by participantId
-      const playerMap: Record<string, TriviaLeader> = {};
-      for (const result of results) {
-        if (!playerMap[result.participantId]) {
-          playerMap[result.participantId] = {
-            participantId: result.participantId,
-            displayName: result.displayName || result.participantId,
-            totalScore: 0,
-            gamesPlayed: 0,
-            allResults: [],
-          };
+      const levels = [1, 2, 3];
+      const byLevel: Record<string, TriviaLeader[]> = {};
+      for (const level of levels) {
+        const q = query(collection(db, "game-results"), where("level", "==", level), orderBy("totalScore", "desc"), limit(10));
+        const snapshot = await getDocs(q);
+        const results: GameResult[] = snapshot.docs.map((doc) => doc.data() as GameResult);
+        // Aggregate by participantId
+        const playerMap: Record<string, TriviaLeader> = {};
+        for (const result of results) {
+          if (!playerMap[result.participantId]) {
+            playerMap[result.participantId] = {
+              participantId: result.participantId,
+              displayName: result.displayName || result.participantId,
+              totalScore: 0,
+              gamesPlayed: 0,
+              allResults: [],
+            };
+          }
+          playerMap[result.participantId].totalScore += result.totalScore || 0;
+          playerMap[result.participantId].gamesPlayed += 1;
+          playerMap[result.participantId].allResults.push(result);
         }
-        playerMap[result.participantId].totalScore += result.totalScore || 0;
-        playerMap[result.participantId].gamesPlayed += 1;
-        playerMap[result.participantId].allResults.push(result);
+        byLevel[level] = Object.values(playerMap).sort((a, b) => b.totalScore - a.totalScore);
       }
-      const leaderboard = Object.values(playerMap).sort((a, b) => b.totalScore - a.totalScore);
-      setTriviaLeaders(leaderboard);
+      setTriviaLeadersByLevel(byLevel);
       setIsLoading(false);
     };
-    fetchTriviaLeaders();
+    fetchTriviaLeadersByLevel();
   }, []);
 
   // Fetch per-question details for a player
@@ -237,47 +243,49 @@ const Leaderboard = () => {
 
   const renderTriviaLeaderboard = () => (
     <div className="grid gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Players</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            {isLoading ? (
-              <div>Loading...</div>
-            ) : triviaLeaders.length === 0 ? (
-              <div>No trivia results yet.</div>
-            ) : (
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="text-left">#</th>
-                    <th className="text-left">Player</th>
-                    <th className="text-left">Total Points</th>
-                    <th className="text-left">Games Played</th>
-                    <th className="text-left">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {triviaLeaders.map((player, idx) => (
-                    <tr key={player.participantId} className="border-b border-gray-200">
-                      <td>{idx + 1}</td>
-                      <td>{player.displayName}</td>
-                      <td>{player.totalScore}</td>
-                      <td>{player.gamesPlayed}</td>
-                      <td>
-                        <Button size="sm" variant="outline" onClick={() => handleViewDetails(player)}>
-                          View Details
-                        </Button>
-                      </td>
+      {[1, 2, 3].map((level) => (
+        <Card key={level}>
+          <CardHeader>
+            <CardTitle>Top Players - Level {level}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              {isLoading ? (
+                <div>Loading...</div>
+              ) : !triviaLeadersByLevel[level] || triviaLeadersByLevel[level].length === 0 ? (
+                <div>No trivia results yet for this level.</div>
+              ) : (
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left">#</th>
+                      <th className="text-left">Player</th>
+                      <th className="text-left">Total Points</th>
+                      <th className="text-left">Games Played</th>
+                      <th className="text-left">Details</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                  </thead>
+                  <tbody>
+                    {triviaLeadersByLevel[level].map((player, idx) => (
+                      <tr key={player.participantId} className="border-b border-gray-200">
+                        <td>{idx + 1}</td>
+                        <td>{player.displayName}</td>
+                        <td>{player.totalScore}</td>
+                        <td>{player.gamesPlayed}</td>
+                        <td>
+                          <Button size="sm" variant="outline" onClick={() => handleViewDetails(player)}>
+                            View Details
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
       {/* Player Details Modal */}
       {selectedPlayer && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
