@@ -13,6 +13,7 @@ import { Prop } from "@/types"; // Use Prop type from @/types
 import { getProp, createProp, updateProp, deleteFileFromStorage, uploadFile } from "@/lib/firebase"; // Import Firebase functions
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react"; // Added Loader2
+import QRCode from "react-qr-code";
 
 // Define the validation schema using Zod
 const propSchema = z.object({
@@ -265,6 +266,14 @@ const PropForm = () => {
         { label: isEditing ? "Edit" : "New", href: isEditing ? `/admin/props/${propId}/edit` : "/admin/props/new" },
       ]}
     >
+      {/* QR Code for printing (only when editing) */}
+      {isEditing && currentProp && (
+        <div className="flex flex-col items-center mb-6 print:mb-2">
+          <label className="font-semibold mb-2 text-lg print:text-base">Prop QR Code (for /props/{currentProp.id})</label>
+          <QRCode value={`${window.location.origin}/props/${currentProp.id}`} style={{ height: 160, width: 160 }} />
+          <span className="mt-2 text-xs text-muted-foreground print:text-[10px]">Scan to view this prop online</span>
+        </div>
+      )}
       <Card className="border-[#333] bg-[#111] text-white">
         <CardHeader>
           <CardTitle className="text-white">Prop Details</CardTitle>
