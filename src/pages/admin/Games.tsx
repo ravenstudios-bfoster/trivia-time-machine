@@ -234,6 +234,7 @@ const AdminGames = () => {
                 <TableHead className="text-[#666]">Status</TableHead>
                 <TableHead className="text-[#666]">Created</TableHead>
                 <TableHead className="text-[#666]">Players</TableHead>
+                <TableHead className="text-[#666]">Questions</TableHead>
                 <TableHead className="text-[#666]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -248,6 +249,7 @@ const AdminGames = () => {
                   </TableCell>
                   <TableCell className="text-[#666]">{game.createdAt ? format(game.createdAt.toDate(), "yyyy-MM-dd HH:mm") : "-"}</TableCell>
                   <TableCell className="text-[#666]">{game.participantCount ?? 0}</TableCell>
+                  <TableCell className="text-[#666]">{game.questionIds?.length ?? 0}</TableCell>
                   <TableCell className="text-right">
                     {userRole !== "admin" ? (
                       <DropdownMenu>

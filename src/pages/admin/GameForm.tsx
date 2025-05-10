@@ -42,6 +42,9 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+// Helper to deduplicate questions by id
+const dedupeQuestions = (questions: Question[]): Question[] => Array.from(new Map(questions.map((q) => [q.id, q])).values());
+
 const GameForm = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
@@ -102,8 +105,9 @@ const GameForm = () => {
 
         // Load game questions
         const questions = await getGameQuestions(gameId);
-        setGameQuestions(questions);
-        setSelectedQuestions(questions);
+        const deduped = dedupeQuestions(questions);
+        setGameQuestions(deduped);
+        setSelectedQuestions(deduped);
       } catch (error) {
         console.error("Error loading game:", error);
         toast.error("Failed to load game");
@@ -140,6 +144,8 @@ const GameForm = () => {
     setIsLoading(true);
 
     try {
+      // Deduplicate before saving
+      const dedupedSelectedQuestions = dedupeQuestions(selectedQuestions);
       const gameData = {
         title: values.title,
         description: values.description || "",
@@ -150,17 +156,17 @@ const GameForm = () => {
         enableBonusQuestions: values.enableBonusQuestions,
         enablePostGameReview: values.enablePostGameReview,
         allowedLevels: values.allowedLevels,
-        questionIds: selectedQuestions.map((q) => q.id),
+        questionIds: dedupedSelectedQuestions.map((q) => q.id),
         updatedAt: Timestamp.now(),
       };
 
       if (gameId) {
         // Update existing game
         await updateGame(gameId, gameData);
-        if (selectedQuestions.length > 0) {
+        if (dedupedSelectedQuestions.length > 0) {
           await addQuestionsToGame(
             gameId,
-            selectedQuestions.map((q) => q.id)
+            dedupedSelectedQuestions.map((q) => q.id)
           );
         }
         toast.success("Game updated successfully");
@@ -175,10 +181,10 @@ const GameForm = () => {
           createdAt: Timestamp.now(),
         };
         const newGameId = await createGame(newGameData);
-        if (selectedQuestions.length > 0) {
+        if (dedupedSelectedQuestions.length > 0) {
           await addQuestionsToGame(
             newGameId,
-            selectedQuestions.map((q) => q.id)
+            dedupedSelectedQuestions.map((q) => q.id)
           );
         }
         toast.success("Game created successfully");
@@ -196,8 +202,8 @@ const GameForm = () => {
   const addQuestionToGame = async (question: Question) => {
     if (!gameId) {
       // If creating a new game, just add to local state
-      if (!gameQuestions.some((q) => q.id === question.id)) {
-        setGameQuestions([...gameQuestions, question]);
+      if (!selectedQuestions.some((q) => q.id === question.id)) {
+        setSelectedQuestions([...selectedQuestions, question]);
       }
       return;
     }
@@ -207,8 +213,8 @@ const GameForm = () => {
       await addQuestionsToGame(gameId, [question.id]);
 
       // Update local state
-      if (!gameQuestions.some((q) => q.id === question.id)) {
-        setGameQuestions([...gameQuestions, question]);
+      if (!selectedQuestions.some((q) => q.id === question.id)) {
+        setSelectedQuestions([...selectedQuestions, question]);
       }
 
       toast.success("Question added to game");
@@ -230,10 +236,15 @@ const GameForm = () => {
       // Remove from Firebase
       await removeQuestionFromGame(gameId, questionId);
 
-      // Update local state
-      setGameQuestions(gameQuestions.filter((q) => q.id !== questionId));
+      // Fetch updated questions to confirm deletion
+      const updatedQuestions = await getGameQuestions(gameId);
+      setGameQuestions(updatedQuestions);
 
-      toast.success("Question removed from game");
+      if (!updatedQuestions.some((q) => q.id === questionId)) {
+        toast.success("Question removed from game");
+      } else {
+        toast.error("Failed to remove question from game");
+      }
     } catch (error) {
       console.error("Error removing question from game:", error);
       toast.error("Failed to remove question from game");
@@ -272,7 +283,9 @@ const GameForm = () => {
   };
 
   const handleQuestionSelect = (questions: Question[]) => {
-    setSelectedQuestions(questions);
+    // Remove duplicates by id
+    const uniqueQuestions = dedupeQuestions([...selectedQuestions, ...questions]);
+    setSelectedQuestions(uniqueQuestions);
     setShowQuestionSelector(false);
   };
 
@@ -307,21 +320,6 @@ const GameForm = () => {
 
           <CardContent>
             <Form {...form}>
-              {/* Debug log for form state and values */}
-              {process.env.NODE_ENV === "development" && (
-                <pre className="text-xs text-gray-400 bg-gray-900 p-2 rounded mb-2">
-                  {JSON.stringify(
-                    {
-                      isDirty: form.formState.isDirty,
-                      isValid: form.formState.isValid,
-                      errors: form.formState.errors,
-                      values: form.getValues(),
-                    },
-                    null,
-                    2
-                  )}
-                </pre>
-              )}
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Tabs value={steps[currentStep].id} className="space-y-6">
                   <TabsList className="grid grid-cols-2 gap-4 bg-[#333] p-1 rounded-lg">

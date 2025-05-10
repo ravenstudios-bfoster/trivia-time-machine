@@ -332,26 +332,29 @@ export const addQuestionsToGame = async (gameId: string, questionIds: string[]):
   const batch = writeBatch(db);
   const gameQuestionsRef = collection(db, "games", gameId, "gameQuestions");
 
-  // Get current questions to determine next order
+  // 1. Get all existing gameQuestions docs and delete them
   const currentQuestionsSnapshot = await getDocs(gameQuestionsRef);
-  const nextOrder = currentQuestionsSnapshot.size;
+  currentQuestionsSnapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
 
-  // Add each question
+  // 2. Add each new question as a new doc with correct order
   questionIds.forEach((questionId, index) => {
     const newQuestionRef = doc(gameQuestionsRef);
     batch.set(newQuestionRef, {
       questionId,
       gameId,
-      order: nextOrder + index,
+      order: index,
     });
   });
 
-  // Update the game's questionIds array
+  // 3. Update the game's questionIds array
   const gameRef = doc(db, "games", gameId);
   batch.update(gameRef, {
     questionIds: questionIds,
   });
 
+  // 4. Commit the batch
   return await batch.commit();
 };
 
