@@ -106,10 +106,14 @@ const LevelSelect = () => {
         if (start && msg.includes("{time}")) {
           msg = msg.replace("{time}", format(start, "PPPp"));
         }
-        if (!start || !end || now < start || now > end) {
-          setWindowMessage(msg);
+        if (!start || !end) {
+          setWindowMessage(msg); // fallback
+        } else if (now < start) {
+          setWindowMessage(msg); // trivia not open yet
+        } else if (now > end) {
+          setWindowMessage("This trivia game has ended.");
         } else {
-          setWindowMessage(null);
+          setWindowMessage(null); // trivia is open
         }
       } else {
         setWindowMessage(null);
