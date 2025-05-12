@@ -32,6 +32,9 @@ const Header = () => {
           <ProtectedLink to="/video-guestbook" className="text-white hover:text-primary transition-colors text-lg">
             Video Guestbook
           </ProtectedLink>
+          <ProtectedLink to="/live-photo-wall" className="text-white hover:text-primary transition-colors text-lg">
+            Live Photo Wall
+          </ProtectedLink>
           <a href="https://give.michaeljfox.org/fundraiser/6119686" target="_blank" rel="noopener noreferrer" className="text-white hover:text-primary transition-colors text-lg">
             Team Fox
           </a>
@@ -61,6 +64,9 @@ const Header = () => {
             </ProtectedLink>
             <ProtectedLink to="/video-guestbook" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Video Guestbook
+            </ProtectedLink>
+            <ProtectedLink to="/live-photo-wall" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
+              Live Photo Wall
             </ProtectedLink>
             <a href="https://give.michaeljfox.org/fundraiser/6119686" target="_blank" rel="noopener noreferrer" className="text-white hover:text-primary transition-colors text-lg" onClick={toggleMenu}>
               Team Fox

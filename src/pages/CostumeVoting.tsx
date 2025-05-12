@@ -379,17 +379,33 @@ export default function CostumeVoting() {
                                     submittedBy: costume.submittedBy,
                                   });
                                   return (
-                                    <Button
-                                      key={category.id}
-                                      variant={hasVoted ? "secondary" : "default"}
-                                      className="w-full justify-start"
-                                      disabled={!isVotingOpen}
-                                      onClick={() => handleVote(costume.id, category.tag)}
-                                    >
-                                      {category.name}
-                                      {hasVoted && hasVotedForThisCostume && <span className="ml-auto">✓</span>}
-                                      {hasVoted && !hasVotedForThisCostume && <span className="ml-auto text-muted-foreground">(Vote for this instead?)</span>}
-                                    </Button>
+                                    <div key={category.id} className="flex w-full gap-2">
+                                      <Button variant={hasVoted ? "secondary" : "default"} className="w-full justify-start" disabled={!isVotingOpen} onClick={() => handleVote(costume.id, category.tag)}>
+                                        {category.name}
+                                        {hasVoted && hasVotedForThisCostume && <span className="ml-auto">✓</span>}
+                                        {hasVoted && !hasVotedForThisCostume && <span className="ml-auto text-muted-foreground">(Vote for this instead?)</span>}
+                                      </Button>
+                                      {/* Unvote button: only show if user has voted for this costume in this category */}
+                                      {hasVotedForThisCostume && (
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          className="ml-1"
+                                          disabled={!isVotingOpen}
+                                          title="Remove Vote"
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (!currentUser) return;
+                                            await removeVote(currentUser.id, costume.id, category.tag);
+                                            const updatedVotes = await getUserVotes(currentUser.id);
+                                            setUserVotes(updatedVotes);
+                                            toast.success("Vote removed.");
+                                          }}
+                                        >
+                                          ✕
+                                        </Button>
+                                      )}
+                                    </div>
                                   );
                                 })
                               )}
