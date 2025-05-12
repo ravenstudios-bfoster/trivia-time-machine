@@ -251,52 +251,54 @@ const AdminGames = () => {
                   <TableCell className="text-[#666]">{game.participantCount ?? 0}</TableCell>
                   <TableCell className="text-[#666]">{game.questionIds?.length ?? 0}</TableCell>
                   <TableCell className="text-right">
-                    {userRole !== "admin" ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-[#666] hover:text-white hover:bg-[#222]">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
-                          <Link to={`/admin/games/${game.id}`}>
-                            <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
+                    <div className="flex justify-center">
+                      {userRole !== "admin" ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-[#666] hover:text-white hover:bg-[#222]">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-[#222] border-[#333]">
+                            <Link to={`/admin/games/${game.id}`}>
+                              <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
+                                <Eye className="h-4 w-4 mr-2" />
+                                View
+                              </DropdownMenuItem>
+                            </Link>
+                            <Link to={`/admin/games/${game.id}/edit`}>
+                              <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            </Link>
+                            <DropdownMenuItem
+                              className="text-white hover:bg-[#333] cursor-pointer"
+                              onClick={async () => {
+                                const newStatus = game.status === "active" ? "draft" : "active";
+                                try {
+                                  await updateGame(game.id, { status: newStatus });
+                                  setGames(games.map((g) => (g.id === game.id ? { ...g, status: newStatus } : g)));
+                                  setFilteredGames(filteredGames.map((g) => (g.id === game.id ? { ...g, status: newStatus } : g)));
+                                  toast.success(`Game status set to ${newStatus}`);
+                                } catch (error) {
+                                  toast.error("Failed to update game status");
+                                }
+                              }}
+                            >
+                              {game.status === "active" ? "Set Draft" : "Set Active"}
                             </DropdownMenuItem>
-                          </Link>
-                          <Link to={`/admin/games/${game.id}/edit`}>
-                            <DropdownMenuItem className="text-white hover:bg-[#333] cursor-pointer">
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
+                            <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteGameId(game.id)}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
                             </DropdownMenuItem>
-                          </Link>
-                          <DropdownMenuItem
-                            className="text-white hover:bg-[#333] cursor-pointer"
-                            onClick={async () => {
-                              const newStatus = game.status === "active" ? "draft" : "active";
-                              try {
-                                await updateGame(game.id, { status: newStatus });
-                                setGames(games.map((g) => (g.id === game.id ? { ...g, status: newStatus } : g)));
-                                setFilteredGames(filteredGames.map((g) => (g.id === game.id ? { ...g, status: newStatus } : g)));
-                                toast.success(`Game status set to ${newStatus}`);
-                              } catch (error) {
-                                toast.error("Failed to update game status");
-                              }
-                            }}
-                          >
-                            {game.status === "active" ? "Set Draft" : "Set Active"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-[#FF3D00] hover:bg-[#333] hover:text-[#FF3D00] cursor-pointer" onClick={() => setDeleteGameId(game.id)}>
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <span className="text-[#666] italic">View Only</span>
-                    )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <span className="text-[#666] italic">View Only</span>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

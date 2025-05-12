@@ -35,13 +35,6 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
     }
   }, [currentUser, isAdmin, isLoading, navigate]);
 
-  // Redirect to dashboard if trying to access Users page without super admin privileges
-  useEffect(() => {
-    if (!isLoading && currentUser && isAdmin && !isSuperAdmin && location.pathname === "/admin/users") {
-      navigate("/admin/dashboard");
-    }
-  }, [currentUser, isAdmin, isSuperAdmin, isLoading, location.pathname, navigate]);
-
   const handleLogout = async () => {
     await logout();
     navigate("/admin/login");
@@ -65,23 +58,21 @@ const AdminLayout = ({ children, title, subtitle, breadcrumbs = [] }: AdminLayou
 
   const renderNavItems = () => (
     <nav className="space-y-1">
-      {navItems.map((item) =>
-        isSuperAdmin || item.href !== "/admin/users" ? (
-          <Link
-            key={item.href}
-            to={item.href}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={`flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-              location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
-                ? "bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white font-medium"
-                : "text-[#666] hover:text-white hover:bg-[#222]"
-            }`}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        ) : null
-      )}
+      {navItems.map((item) => (
+        <Link
+          key={item.href}
+          to={item.href}
+          onClick={() => setIsMobileMenuOpen(false)}
+          className={`flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
+            location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
+              ? "bg-gradient-to-r from-[#FFD700] to-[#FF3D00] text-white font-medium"
+              : "text-[#666] hover:text-white hover:bg-[#222]"
+          }`}
+        >
+          {item.icon}
+          {item.label}
+        </Link>
+      ))}
     </nav>
   );
 

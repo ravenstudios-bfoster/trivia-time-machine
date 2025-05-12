@@ -41,7 +41,7 @@ const RESET_PASSWORD_FUNCTION_URL = "https://us-central1-trivia-6b7e8.cloudfunct
 const CREATE_USER_FUNCTION_URL = "https://us-central1-trivia-6b7e8.cloudfunctions.net/createUser"; // TODO: Replace with your actual function URL
 
 const Users = () => {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +80,9 @@ const Users = () => {
   const [bulkResetPasswordValue, setBulkResetPasswordValue] = useState("");
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
+  // Helper to check if current user is admin (not super_admin)
+  const isStrictAdmin = isAdmin && !isSuperAdmin;
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -107,6 +110,10 @@ const Users = () => {
   };
 
   const handleCreateUser = async () => {
+    if (isStrictAdmin && formData.role === "super_admin") {
+      toast.error("Admins cannot create super admin users.");
+      return;
+    }
     if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
       toast.error("Please fill in all required fields");
       return;
@@ -153,6 +160,10 @@ const Users = () => {
   };
 
   const handleEditUser = async () => {
+    if (isStrictAdmin && formData.role === "super_admin") {
+      toast.error("Admins cannot assign super admin role.");
+      return;
+    }
     if (!selectedUser || !formData.firstName || !formData.lastName) {
       toast.error("Please fill in all required fields");
       return;
@@ -215,6 +226,7 @@ const Users = () => {
   };
 
   const openEditDialog = (user: User) => {
+    if (isStrictAdmin && user.role === "super_admin") return;
     setSelectedUser(user);
     setFormData({
       email: user.email,
@@ -359,12 +371,12 @@ const Users = () => {
   };
 
   const content = () => {
-    if (!isSuperAdmin) {
+    if (!isSuperAdmin && !isAdmin) {
       return (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Access Denied</AlertTitle>
-          <AlertDescription>Only super admins can access this page.</AlertDescription>
+          <AlertDescription>Only admins or super admins can access this page.</AlertDescription>
         </Alert>
       );
     }
@@ -462,7 +474,13 @@ const Users = () => {
                 paginatedUsers.map((user) => (
                   <TableRow key={user.id} className="border-b-[#333]">
                     <TableCell>
-                      <input type="checkbox" checked={selectedUserIds.includes(user.id)} onChange={() => handleSelectUser(user.id)} aria-label={`Select user ${user.email}`} />
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.includes(user.id)}
+                        onChange={() => handleSelectUser(user.id)}
+                        aria-label={`Select user ${user.email}`}
+                        disabled={isStrictAdmin && user.role === "super_admin"}
+                      />
                     </TableCell>
                     <TableCell className="font-medium text-[#ccc]">{user.email}</TableCell>
                     <TableCell className="text-[#ccc]">{user.firstName || "-"}</TableCell>
@@ -479,15 +497,24 @@ const Users = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openDeleteDialog(user)} className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openResetPasswordDialog(user)}>
-                            <Key className="mr-2 h-4 w-4" /> Reset Password
-                          </DropdownMenuItem>
+                          {!(isStrictAdmin && user.role === "super_admin") && (
+                            <>
+                              <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit User
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openDeleteDialog(user)} className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete User
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openResetPasswordDialog(user)}>
+                                <Key className="mr-2 h-4 w-4" /> Reset Password
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {isStrictAdmin && user.role === "super_admin" && (
+                            <DropdownMenuItem disabled className="italic text-[#888]">
+                              Super Admin (view only)
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -560,7 +587,7 @@ const Users = () => {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    {isSuperAdmin && <SelectItem value="super_admin">Super Admin</SelectItem>}
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="user">User</SelectItem>
                   </SelectContent>
@@ -614,7 +641,7 @@ const Users = () => {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    {isSuperAdmin && <SelectItem value="super_admin">Super Admin</SelectItem>}
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="user">User</SelectItem>
                   </SelectContent>
