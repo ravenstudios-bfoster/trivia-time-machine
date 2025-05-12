@@ -115,7 +115,7 @@ export default function CostumeVoting() {
     const now = new Date();
     const startTime = new Date(votingWindow.startDateTime);
     const oneHourBefore = new Date(startTime.getTime() - 60 * 60 * 1000);
-    setShowSubmitButton(now >= oneHourBefore && now < startTime);
+    setShowSubmitButton(now >= oneHourBefore);
   }, [votingWindow]);
 
   const handleVote = async (costumeId: string, category: string) => {
