@@ -18,6 +18,7 @@ import { UserRole } from "@/types";
 import AdminLayout from "@/components/AdminLayout";
 import { resetUserPassword } from "@/api/users";
 import ImportUsersDialog from "@/components/ImportUsersDialog";
+import { format } from "date-fns";
 
 interface User {
   id: string; // This will be the Firebase Auth UID
@@ -26,6 +27,7 @@ interface User {
   displayName: string;
   firstName: string;
   lastName: string;
+  createdAt?: Date;
 }
 
 interface UserFormData {
@@ -67,7 +69,7 @@ const Users = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 10;
+  const rowsPerPage = 50;
 
   // Add state for reset password
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
@@ -96,10 +98,14 @@ const Users = () => {
       const usersRef = collection(db, "users");
       const q = query(usersRef);
       const querySnapshot = await getDocs(q);
-      const usersData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as User[];
+      const usersData = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : undefined,
+        };
+      }) as User[];
       setUsers(usersData);
     } catch (err) {
       setError("Failed to fetch users");
@@ -460,6 +466,7 @@ const Users = () => {
                 <TableHead className="text-white">Last Name</TableHead>
                 <TableHead className="text-white">Display Name</TableHead>
                 <TableHead className="text-white">Role</TableHead>
+                <TableHead className="text-white">Created At</TableHead>
                 <TableHead className="text-white text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -487,6 +494,7 @@ const Users = () => {
                     <TableCell className="text-[#ccc]">{user.lastName || "-"}</TableCell>
                     <TableCell className="text-[#ccc]">{user.displayName || "-"}</TableCell>
                     <TableCell className="text-[#ccc]">{user.role}</TableCell>
+                    <TableCell className="text-[#ccc]">{user.createdAt ? format(user.createdAt, "MMM d, yyyy") : "-"}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
