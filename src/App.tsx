@@ -25,29 +25,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, isLoading } = useAuth();
   const location = useLocation();
 
-  console.log("ProtectedRoute Debug:", {
-    path: location.pathname,
-    currentUser: currentUser
-      ? {
-          id: currentUser.id,
-          displayName: currentUser.displayName,
-          role: currentUser.role,
-        }
-      : null,
-    isLoading,
-    gameState: state
-      ? {
-          hasCurrentSession: !!state.currentSession,
-          player: state.player
-            ? {
-                id: state.player.id,
-                name: state.player.name,
-              }
-            : null,
-        }
-      : null,
-  });
-
   // Show loading state while checking authentication
   if (isLoading) {
     return (
@@ -73,8 +50,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     console.log("No current session for results page, redirecting to levels");
     return <Navigate to="/levels" replace />;
   }
-
-  console.log("Access granted to:", location.pathname);
   return <>{children}</>;
 };
 

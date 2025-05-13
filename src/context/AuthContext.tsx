@@ -81,20 +81,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("AuthStateChanged:", {
-        hasFirebaseUser: !!firebaseUser,
-        firebaseUser: firebaseUser
-          ? {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-            }
-          : null,
-      });
-
       if (firebaseUser) {
         const userData = await getUserData(firebaseUser);
-        console.log("Fetched user data:", userData);
         setCurrentUser(userData);
         if (userData) {
           setUserRole(userData.role);
@@ -114,13 +102,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    console.log("Attempting login with:", email);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login successful:", {
-        uid: userCredential.user.uid,
-        email: userCredential.user.email,
-      });
       const userData = await getUserData(userCredential.user);
       if (userData) {
         setCurrentUser(userData);

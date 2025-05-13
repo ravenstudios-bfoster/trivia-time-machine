@@ -79,7 +79,6 @@ export const submitVideoGuestbookMessage = async (name: string, message: string,
 
 export const getVideoGuestbookMessages = async (): Promise<VideoGuestbookMessage[]> => {
   try {
-    console.log("Fetching video guestbook messages");
     const userId = auth.currentUser?.uid;
     if (!userId) {
       console.log("No user logged in");
@@ -95,14 +94,6 @@ export const getVideoGuestbookMessages = async (): Promise<VideoGuestbookMessage
       createdAt: doc.data().createdAt.toDate(),
     })) as VideoGuestbookMessage[];
 
-    console.log("Retrieved messages:", {
-      count: messages.length,
-      types: messages.reduce((acc, msg) => {
-        acc[msg.type] = (acc[msg.type] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-    });
-
     return messages;
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -112,10 +103,8 @@ export const getVideoGuestbookMessages = async (): Promise<VideoGuestbookMessage
 
 export const updateVideoGuestbookMessage = async (messageId: string, updates: Partial<VideoGuestbookMessage>): Promise<void> => {
   try {
-    console.log("Updating message", { messageId, updates });
     const messageRef = doc(db, "video-guestbook", messageId);
     await updateDoc(messageRef, updates);
-    console.log("Message updated successfully");
   } catch (error) {
     console.error("Error updating message:", error);
     throw error;
@@ -124,17 +113,13 @@ export const updateVideoGuestbookMessage = async (messageId: string, updates: Pa
 
 export const deleteVideoGuestbookMessage = async (messageId: string, videoUrl?: string): Promise<void> => {
   try {
-    console.log("Deleting message", { messageId, hasVideo: !!videoUrl });
-
     // 1. Delete Firestore document
     const messageRef = doc(db, "video-guestbook", messageId);
     await deleteDoc(messageRef);
-    console.log("Firestore document deleted");
 
     // 2. Delete video file from Storage if it exists
     if (videoUrl) {
       try {
-        console.log("Attempting to delete video file");
         // Extract the path from the Firebase Storage URL
         const decodedUrl = decodeURIComponent(videoUrl);
         const pathMatch = decodedUrl.match(/video-guestbook%2F.+?(?=\?)/);

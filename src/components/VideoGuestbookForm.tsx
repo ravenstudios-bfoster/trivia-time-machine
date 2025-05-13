@@ -33,7 +33,6 @@ const VideoGuestbookForm = ({ onSuccess, type, onBack, initialMessage }: VideoGu
   }, [videoPreviewUrl, initialMessage]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("File selection triggered");
     const file = e.target.files?.[0];
     if (file) {
       console.log("File selected:", {
@@ -83,7 +82,6 @@ const VideoGuestbookForm = ({ onSuccess, type, onBack, initialMessage }: VideoGu
     });
 
     if (!currentUser) {
-      console.log("No current user");
       toast({
         title: "Please sign in",
         description: "You must be signed in to leave a message",
@@ -93,7 +91,6 @@ const VideoGuestbookForm = ({ onSuccess, type, onBack, initialMessage }: VideoGu
     }
 
     if (type === "video" && !videoFile && !initialMessage?.videoUrl) {
-      console.log("Video required but not provided");
       toast({
         title: "Missing video",
         description: "Please provide a video message",
@@ -103,7 +100,6 @@ const VideoGuestbookForm = ({ onSuccess, type, onBack, initialMessage }: VideoGu
     }
 
     if (type === "written" && !message.trim()) {
-      console.log("Written message required but not provided");
       toast({
         title: "Missing message",
         description: "Please write your message",

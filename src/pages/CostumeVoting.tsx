@@ -386,14 +386,6 @@ export default function CostumeVoting() {
                                 categories.map((category) => {
                                   const hasVoted = userVotes.some((vote) => vote.costumeId === costume.id && vote.category === category.tag);
                                   const hasVotedForThisCostume = userVotes.some((vote) => vote.category === category.tag && vote.costumeId === costume.id);
-                                  console.log("Voting button state:", {
-                                    category: category.name,
-                                    costumeId: costume.id,
-                                    hasVoted,
-                                    isOwnSubmission,
-                                    currentUserId: currentUser?.id,
-                                    submittedBy: costume.submittedBy,
-                                  });
                                   return (
                                     <div key={category.id} className="flex w-full gap-2">
                                       <Button variant={hasVoted ? "secondary" : "default"} className="w-full justify-start" disabled={!isVotingOpen} onClick={() => handleVote(costume.id, category.tag)}>

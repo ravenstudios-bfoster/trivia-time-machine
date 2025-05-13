@@ -971,10 +971,8 @@ export const deleteProp = async (propId: string): Promise<void> => {
 // Costume Instructions functions
 export const getCostumeInstructions = async (): Promise<CostumeInstructions | null> => {
   try {
-    console.log("Getting costume instructions from Firebase...");
     const docRef = doc(db, "config", "costumeInstructions");
     const docSnap = await getDoc(docRef);
-    console.log("Raw costume instructions data:", docSnap.data());
 
     if (docSnap.exists()) {
       const data = docSnap.data();
@@ -984,7 +982,6 @@ export const getCostumeInstructions = async (): Promise<CostumeInstructions | nu
         modifiedAt: data.modifiedAt,
       };
     }
-    console.log("No costume instructions found");
     return null;
   } catch (error) {
     console.error("Error fetching costume instructions:", error);
