@@ -271,7 +271,7 @@ export default function CostumeVoting() {
                 <DialogTrigger asChild>
                   <Button>Submit Your Costume</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                   <DialogTitle>Submit Your Costume</DialogTitle>
                   <UserCostumeSubmission categories={categories} onSuccess={handleSubmitSuccess} />
                 </DialogContent>

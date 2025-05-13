@@ -18,7 +18,6 @@ import Admin from "./pages/Admin";
 import CostumeVoting from "@/pages/CostumeVoting";
 import PropsAndMemorabilia from "@/pages/PropsAndMemorabilia";
 import PropDetail from "./pages/PropDetail";
-import LivePhotoWall from "@/pages/LivePhotoWall";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -208,7 +207,6 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/live-photo-wall" element={<LivePhotoWall />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
