@@ -13,6 +13,7 @@ import { Clock, HelpCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 // Add this type for the change vote dialog
 interface ChangeVoteDialogProps {
@@ -39,6 +40,8 @@ function ChangeVoteDialog({ isOpen, onClose, onConfirm, categoryName }: ChangeVo
     </Dialog>
   );
 }
+
+const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export default function CostumeVoting() {
   const { currentUser, isLoading: isAuthLoading } = useAuth();
@@ -296,16 +299,29 @@ export default function CostumeVoting() {
               {categories.map((category) => (
                 <div key={category.id} className="flex items-center gap-2 bg-secondary/5 rounded-lg p-2 sm:p-3 hover:bg-secondary/10 transition-colors">
                   <span className="font-medium text-sm sm:text-base">{category.name}</span>
-                  <HoverCard openDelay={0} closeDelay={0}>
-                    <HoverCardTrigger asChild>
-                      <Button variant="ghost" className="p-0 h-auto hover:bg-transparent focus:ring-0">
-                        <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                      </Button>
-                    </HoverCardTrigger>
-                    <HoverCardContent side="right" align="start" className="max-w-[250px] text-sm bg-popover p-3">
-                      {category.description}
-                    </HoverCardContent>
-                  </HoverCard>
+                  {isMobile ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" className="p-0 h-auto hover:bg-transparent focus:ring-0">
+                          <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent side="right" align="start" className="max-w-[250px] text-sm bg-popover p-3">
+                        {category.description}
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <HoverCard openDelay={0} closeDelay={0}>
+                      <HoverCardTrigger asChild>
+                        <Button variant="ghost" className="p-0 h-auto hover:bg-transparent focus:ring-0">
+                          <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        </Button>
+                      </HoverCardTrigger>
+                      <HoverCardContent side="right" align="start" className="max-w-[250px] text-sm bg-popover p-3">
+                        {category.description}
+                      </HoverCardContent>
+                    </HoverCard>
+                  )}
                 </div>
               ))}
             </div>
